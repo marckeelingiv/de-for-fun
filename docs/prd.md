@@ -4,7 +4,7 @@
 
 The goal is to build a production-grade, local-first data engineering sandbox that simulates high-volume enterprise data workloads. The architecture decouples the storage layer from the compute layer by leveraging an S3-compatible object store (MinIO) as a data lakehouse. 
 
-This allows absolute flexibility to run high-concurrency analytical queries via ClickHouse or lightweight local analysis via DuckDB, all exposed through a semantic layer to agentic AI workflows. The entire stack is deployed locally using a lightweight Kubernetes distribution (**k3s**).
+This allows absolute flexibility to run local analysis via DuckDB, exposed through a semantic layer to agentic AI workflows. The entire stack is deployed locally using a lightweight Kubernetes distribution (**k3s**).
 
 ---
 
@@ -16,9 +16,9 @@ To balance production-grade architectures with a lightweight local developer exp
 | :--- | :--- | :--- | :--- |
 | **Storage Layer** | **MinIO** (deployed on k3s) | **AWS S3 / Cloud Storage** | S3 API compatibility; zero cloud costs during local dev; partitioned Parquet. |
 | **Data Generation**| **Python + uv + Polars / PyArrow** | **Polars / Custom Worker Jobs** | Polars is single-node, multi-threaded, and blazingly fast with no JVM overhead. |
-| **Compute Engines** | **ClickHouse** & **DuckDB** | **ClickHouse Cloud** & **Athena/Snowflake** | **ClickHouse** for high-concurrency real-time analytics; **DuckDB** via `httpfs` for serverless local queries on the same Parquet files. |
+| **Compute Engines** | **DuckDB** | **DuckDB / MotherDuck / Athena** | **DuckDB** via `httpfs` for serverless local queries on the same Parquet files. |
 | **Orchestration** | **Dagster** (deployed on k3s) | **Dagster Cloud / K8s** | Asset-based orchestration matches the flow from data generator -> storage -> dbt -> semantic layers. |
-| **Transformation** | **dbt-core** with ClickHouse & DuckDB adapters | **dbt-cloud / dbt-core** | Standardizes SQL-based modeling, documentation, and semantic layer definitions. |
+| **Transformation** | **dbt-core** with DuckDB adapter | **dbt-cloud / dbt-core** | Standardizes SQL-based modeling, documentation, and semantic layer definitions. |
 | **BI & AI Semantic** | **Lightdash** & **Lightdash MCP Server** | **Lightdash Cloud** + AI Gateway | Lightdash reads dbt semantic definitions; MCP allows external LLMs to interact with metrics and data. |
 | **Infrastructure** | **k3s** (Lightweight Kubernetes) | **Kubernetes (EKS/GKE)** | k3s provides a production-like Kubernetes API locally with minimal resource footprint. |
 
@@ -69,10 +69,10 @@ All raw and simulated event streams are persisted as immutable, partitioned **Ap
 To maintain a clean, local-first developer experience, the entire toolchain must be scriptable and reproducible. Any engineer checking out the repository should be able to boot the entire stack solely via standard Python/uv scripts and Kubernetes manifests deployed to k3s.
 
 ### Step 1: Bootstrap Local Storage & Services
-Use Kubernetes manifests (located in the `k8s/` directory) to deploy the services to your local k3s cluster:
+Use Kubernetes manifests (located in the `k3s/` directory) to deploy the services to your local k3s cluster:
 * MinIO (S3-compatible storage with PVC, Service, and Deployment)
-* ClickHouse (Service and StatefulSet configured to read from MinIO)
-* Lightdash (Service and Deployment connected to ClickHouse)
+* DuckDB Shared Storage (PersistentVolumeClaim to store the shared `.db` files)
+* Lightdash (Service and Deployment connected to DuckDB)
 * Dagster (Service and Deployment for orchestration)
 
 A lightweight bootstrapping Python script (managed via `uv run`) will run post-deployment to create the `data-lakehouse` bucket and set up standard access credentials.
@@ -83,11 +83,7 @@ Execute a high-performance Python script using `uv run`.
 * Streams partitioned Parquet files directly into the local MinIO bucket via `s3fs` or `boto3`.
 
 ### Step 3: Mount Compute Layers
-* **ClickHouse:** Create external tables pointing to the MinIO Parquet files using the ClickHouse `s3()` table function:
-  ```sql
-  SELECT * FROM s3('http://minio:9000/data-lakehouse/arena/**/*.parquet', 'minioadmin', 'minioadmin', 'Parquet') LIMIT 10;
-  ```
-* **DuckDB:** Query the exact same files locally over HTTP:
+* **DuckDB:** Query the files directly over HTTP using the `httpfs` extension:
   ```sql
   INSTALL httpfs;
   LOAD httpfs;

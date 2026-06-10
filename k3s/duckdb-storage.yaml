@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: duckdb-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce # Standard read-write access for the nodes
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi

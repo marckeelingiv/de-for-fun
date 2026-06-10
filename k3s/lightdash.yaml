@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lightdash
+  namespace: default
+  labels:
+    app: lightdash
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lightdash
+  template:
+    metadata:
+      labels:
+        app: lightdash
+    spec:
+      containers:
+        - name: lightdash
+          image: lightdash/lightdash:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "8080"
+            - name: LIGHTDASH_SECRET
+              value: "supersecretdevelopmentkeyforlightdash123!"
+            - name: SECURE_COOKIES
+              value: "false"
+            - name: DB_HOST
+              value: postgres
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: postgres
+            - name: DB_PASSWORD
+              value: postgresadmin
+            - name: DB_NAME
+              value: metadata
+            - name: LIGHTDASH_INSTALLATION_ID
+              value: "project-sandbox-local"
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1.5Gi
+            requests:
+              cpu: "250m"
+              memory: 512Mi
+          volumeMounts:
+            - mountPath: /app
+              name: app-volume
+            - mountPath: /app/data
+              name: duckdb-volume
+      volumes:
+        - name: app-volume
+          hostPath:
+            path: /home/marc/dev/de-for-fun
+            type: Directory
+        - name: duckdb-volume
+          persistentVolumeClaim:
+            claimName: duckdb-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lightdash
+  namespace: default
+  labels:
+    app: lightdash
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: lightdash

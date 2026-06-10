@@ -1,0 +1,123 @@
+# Project Sandbox: Decoupled Storage & Compute Data Stack
+
+Project Sandbox is a local-first, production-grade data engineering stack designed to simulate and aggregate high-volume enterprise workloads. 
+
+The architecture decouples the storage layer from the compute layer by leveraging an S3-compatible object store (**MinIO**) as a data lakehouse. It processes partitioned Parquet data via **DuckDB** and runs modular transformations via **dbt**, orchestrated by **Dagster**. The transformed metrics are exposed to AI workflows using **Lightdash** and a custom **Model Context Protocol (MCP)** server.
+
+---
+
+## 🏗️ Architectural Overview
+
+```mermaid
+graph TD
+    %% Storage Layer
+    subgraph Storage Layer [Storage Layer - S3 Compatible]
+        MinIO[(MinIO Object Store)]
+        ParquetFiles[Partitioned Parquet Files<br/>s3://data-lakehouse/...]
+        MinIO --> ParquetFiles
+    end
+
+    %% Ingestion Layer
+    subgraph Ingestion [Simulation Ingestion]
+        Gen[Python/Polars Data Generator]
+        Gen -- Streams Parquet --> MinIO
+    end
+
+    %% Compute & Transform
+    subgraph Compute [Compute & Transformation]
+        DuckDB[DuckDB OLAP Engine]
+        dbt[dbt Models]
+        Dagster[Dagster Orchestrator]
+        
+        Dagster -- Coordinates --> Gen
+        Dagster -- Runs --> dbt
+        dbt -- Compiles against --> DuckDB
+        DuckDB -- Queries directly over HTTPfs --> ParquetFiles
+    end
+
+    %% AI & Visualization
+    subgraph AI_BI [Semantic BI & AI Interface]
+        Lightdash[Lightdash BI]
+        MCP[Lightdash MCP Server]
+        LLM[Claude Code / Antigravity]
+
+        Lightdash -- Loads semantic layer --> dbt
+        MCP -- Reads schema & runs queries --> Lightdash
+        LLM -- Commands via natural language --> MCP
+    end
+
+    classDef storage fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
+    classDef compute fill:#ede7f6,stroke:#5e35b1,stroke-width:2px;
+    classDef semantic fill:#f1f8e9,stroke:#558b2f,stroke-width:2px;
+    
+    class MinIO,ParquetFiles storage;
+    class DuckDB,dbt,Dagster compute;
+    class Lightdash,MCP,LLM semantic;
+```
+
+---
+
+## 🛠️ Technology Stack
+
+* **Infrastructure:** [k3s](https://k3s.io/) (Lightweight Kubernetes) managed locally via [k3d](https://k3d.io/) in Docker.
+* **Storage Layer:** S3-compatible [MinIO](https://min.io/) storing partitioned Apache Parquet files.
+* **Compute Engine:** [DuckDB](https://duckdb.org/) using the `httpfs` extension to scan Parquet files.
+* **Transformation & Orchestration:** [dbt-core](https://www.getdbt.com/) and [Dagster](https://dagster.io/).
+* **Semantic BI & AI Layer:** [Lightdash](https://www.lightdash.com/) and a custom Model Context Protocol (MCP) server.
+
+---
+
+## 🚀 Quick Start
+
+### 1. Prerequisites
+Ensure you have `docker` installed and running on your host machine.
+
+### 2. Dependency Setup
+Install the cluster dependencies (`k3d` and `kubectl`):
+```bash
+make setup
+```
+
+### 3. Bootstrap Cluster
+Spin up the containerized local Kubernetes cluster:
+```bash
+make up
+```
+
+### 4. Deploy Services
+Deploy MinIO, PostgreSQL metadata DB, Dagster, and Lightdash:
+```bash
+make deploy
+```
+
+### 5. Check Cluster Status
+Verify all pods are running and services are exposed:
+```bash
+make status
+```
+
+* **Dagster UI:** [http://localhost:3000](http://localhost:3000)
+* **Lightdash UI:** [http://localhost:8080](http://localhost:8080)
+* **MinIO Console:** [http://localhost:9001](http://localhost:9001) (Credentials: `minioadmin` / `minioadmin`)
+
+### 6. Clean Up
+Tear down the cluster and delete container configurations cleanly:
+```bash
+make down
+```
+
+---
+
+## 📁 Repository Structure
+
+```text
+├── docs/                 # Product requirements and task checklists
+├── k3s/                  # Kubernetes manifests (MinIO, Postgres, Dagster, Lightdash)
+├── scripts/              # Infrastructure orchestration scripts
+├── src/                  # Application source code (Data generator, MCP server)
+│   ├── orchestration/    # Dagster asset definitions
+│   └── mcp_server.py     # FastMCP semantic layer server
+├── dbt_project/          # dbt transformations and semantic metrics
+├── Makefile              # Project shortcuts
+└── pyproject.toml        # Python dependencies managed by uv
+```

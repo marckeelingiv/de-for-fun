@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dagster
+  namespace: default
+  labels:
+    app: dagster
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dagster
+  template:
+    metadata:
+      labels:
+        app: dagster
+    spec:
+      containers:
+        - name: dagster
+          image: ghcr.io/astral-sh/uv:python3.11-bookworm-slim
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              cd /app
+              uv sync
+              uv run dagster dev -h 0.0.0.0 -p 3000
+          env:
+            - name: DAGSTER_HOME
+              value: /app/src/orchestration
+            - name: POSTGRES_DB
+              value: metadata
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: postgresadmin
+            - name: POSTGRES_HOST
+              value: postgres
+            - name: MINIO_ENDPOINT
+              value: http://minio:9000
+            - name: MINIO_ACCESS_KEY
+              value: minioadmin
+            - name: MINIO_SECRET_KEY
+              value: minioadmin
+            - name: DUCKDB_PATH
+              value: /app/data/dev.duckdb
+          ports:
+            - containerPort: 3000
+              name: dagster-ui
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1.5Gi
+            requests:
+              cpu: "250m"
+              memory: 512Mi
+          volumeMounts:
+            - mountPath: /app
+              name: app-volume
+            - mountPath: /app/data
+              name: duckdb-volume
+      volumes:
+        - name: app-volume
+          hostPath:
+            path: /home/marc/dev/de-for-fun
+            type: Directory
+        - name: duckdb-volume
+          persistentVolumeClaim:
+            claimName: duckdb-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dagster
+  namespace: default
+  labels:
+    app: dagster
+spec:
+  ports:
+    - port: 3000
+      targetPort: 3000
+  selector:
+    app: dagster

@@ -1,0 +1,72 @@
+version: 2
+
+sources:
+  - name: raw_arena
+    description: Raw SEG arena telemetry events persisted as partitioned Parquet in MinIO.
+    meta:
+      external_location: "read_parquet('s3://data-lakehouse/arena/{name}/**/*.parquet', hive_partitioning = true)"
+    tables:
+      - name: fan_pings
+        description: Fan/device location pings from arena beacon telemetry.
+        columns:
+          - name: timestamp
+            data_type: timestamp
+          - name: device_id
+            data_type: varchar
+          - name: beacon_id
+            data_type: varchar
+          - name: x_coord
+            data_type: double
+          - name: y_coord
+            data_type: double
+          - name: estimated_dwell_time
+            data_type: integer
+      - name: pos_transactions
+        description: Point-of-sale transaction events from arena vendors.
+        columns:
+          - name: timestamp
+            data_type: timestamp
+          - name: transaction_id
+            data_type: varchar
+          - name: vendor_id
+            data_type: varchar
+          - name: item_id
+            data_type: varchar
+          - name: amount
+            data_type: double
+          - name: payment_method
+            data_type: varchar
+
+  - name: raw_podium
+    description: Raw Podium interaction and AI telemetry events persisted as partitioned Parquet in MinIO.
+    meta:
+      external_location: "read_parquet('s3://data-lakehouse/podium/{name}/**/*.parquet', hive_partitioning = true)"
+    tables:
+      - name: interaction_events
+        description: Merchant/customer communication events.
+        columns:
+          - name: timestamp
+            data_type: timestamp
+          - name: merchant_id
+            data_type: varchar
+          - name: customer_id
+            data_type: varchar
+          - name: channel
+            data_type: varchar
+          - name: direction
+            data_type: varchar
+      - name: ai_telemetry
+        description: AI conversation token, latency, and sentiment telemetry.
+        columns:
+          - name: timestamp
+            data_type: timestamp
+          - name: interaction_id
+            data_type: varchar
+          - name: prompt_tokens
+            data_type: integer
+          - name: completion_tokens
+            data_type: integer
+          - name: sentiment_score
+            data_type: double
+          - name: latency_ms
+            data_type: integer

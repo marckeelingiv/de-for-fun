@@ -1,0 +1,146 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redpanda-pvc
+  namespace: default
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redpanda
+  namespace: default
+  labels:
+    app: redpanda
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redpanda
+  template:
+    metadata:
+      labels:
+        app: redpanda
+    spec:
+      containers:
+        - name: redpanda
+          image: docker.redpanda.com/redpandadata/redpanda:v23.3.10
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              exec rpk redpanda start \
+                --mode dev-container \
+                --overprovisioned \
+                --smp 1 \
+                --memory 512M \
+                --reserve-memory 0M \
+                --kafka-addr internal://0.0.0.0:19092,external://0.0.0.0:9092 \
+                --advertise-kafka-addr internal://redpanda.default.svc.cluster.local:19092,external://localhost:9092
+          ports:
+            - containerPort: 19092
+              name: kafka-internal
+            - containerPort: 9092
+              name: kafka-external
+            - containerPort: 8081
+              name: schema-registry
+            - containerPort: 9644
+              name: admin
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+            requests:
+              cpu: "250m"
+              memory: 512Mi
+          volumeMounts:
+            - mountPath: /var/lib/redpanda/data
+              name: redpanda-data
+      volumes:
+        - name: redpanda-data
+          persistentVolumeClaim:
+            claimName: redpanda-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda
+  namespace: default
+  labels:
+    app: redpanda
+spec:
+  type: LoadBalancer
+  ports:
+    - name: kafka-external
+      port: 9092
+      targetPort: 9092
+    - name: kafka-internal
+      port: 19092
+      targetPort: 19092
+    - name: schema-registry
+      port: 8081
+      targetPort: 8081
+  selector:
+    app: redpanda
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redpanda-console
+  namespace: default
+  labels:
+    app: redpanda-console
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redpanda-console
+  template:
+    metadata:
+      labels:
+        app: redpanda-console
+    spec:
+      initContainers:
+        - name: wait-for-redpanda
+          image: rancher/mirrored-library-busybox:1.36.1
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until nc -z redpanda 19092; do sleep 2; done"]
+      containers:
+        - name: redpanda-console
+          image: docker.redpanda.com/redpandadata/console:v2.4.5
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KAFKA_BROKERS
+              value: redpanda:19092
+          ports:
+            - containerPort: 8080
+              name: http
+          resources:
+            limits:
+              cpu: "500m"
+              memory: 512Mi
+            requests:
+              cpu: "100m"
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda-console
+  namespace: default
+  labels:
+    app: redpanda-console
+spec:
+  type: LoadBalancer
+  ports:
+    - name: http
+      port: 8083
+      targetPort: 8080
+  selector:
+    app: redpanda-console

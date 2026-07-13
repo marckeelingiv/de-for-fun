@@ -18,9 +18,14 @@ graph TD
     end
 
     %% Ingestion Layer
-    subgraph Ingestion [Simulation Ingestion]
+    subgraph Ingestion [Simulation Ingestion & Buffering]
         Gen[Python/Polars Data Generator]
-        Gen -- Streams Parquet --> MinIO
+        Redpanda[(Redpanda Queue)]
+        Buffer[Python Buffer Writer]
+        
+        Gen -- Streams JSON events --> Redpanda
+        Redpanda -- Batches & buffers --> Buffer
+        Buffer -- Writes Parquet --> MinIO
     end
 
     %% Compute & Transform
@@ -30,6 +35,7 @@ graph TD
         Dagster[Dagster Orchestrator]
         
         Dagster -- Coordinates --> Gen
+        Dagster -- Triggers --> Buffer
         Dagster -- Runs --> dbt
         dbt -- Compiles against --> DuckDB
         DuckDB -- Queries directly over HTTPfs --> ParquetFiles
@@ -60,6 +66,7 @@ graph TD
 ## 🛠️ Technology Stack
 
 * **Infrastructure:** [k3s](https://k3s.io/) (Lightweight Kubernetes) managed locally via [k3d](https://k3d.io/) in Docker.
+* **Ingestion Queue:** [Redpanda](https://redpanda.com/) single-broker development cluster for transaction buffering.
 * **Storage Layer:** S3-compatible [MinIO](https://min.io/) storing partitioned Apache Parquet files.
 * **Compute Engine:** [DuckDB](https://duckdb.org/) using the `httpfs` extension to scan Parquet files.
 * **Transformation & Orchestration:** [dbt-core](https://www.getdbt.com/) and [Dagster](https://dagster.io/).
@@ -85,7 +92,7 @@ make up
 ```
 
 ### 4. Deploy Services
-Deploy MinIO, PostgreSQL metadata DB, Dagster, and Lightdash:
+Deploy MinIO, PostgreSQL, Redpanda, Redpanda Console, Dagster, and Lightdash to the cluster:
 ```bash
 make deploy
 ```
@@ -99,6 +106,7 @@ make status
 * **Dagster UI:** [http://localhost:3000](http://localhost:3000)
 * **Lightdash UI:** [http://localhost:8080](http://localhost:8080)
 * **MinIO Console:** [http://localhost:9001](http://localhost:9001) (Credentials: `minioadmin` / `minioadmin`)
+* **Redpanda Console:** [http://localhost:8083](http://localhost:8083)
 
 ### 6. Clean Up
 Tear down the cluster and delete container configurations cleanly:

@@ -2,6 +2,8 @@
 set -e
 
 CLUSTER_NAME="sandbox"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CLUSTER_REPO_PATH="/workspace/de-for-fun"
 
 echo "=== Creating k3d Cluster: ${CLUSTER_NAME} ==="
 
@@ -15,7 +17,9 @@ else
     -p "9001:9001@loadbalancer" \
     -p "3000:3000@loadbalancer" \
     -p "8080:8080@loadbalancer" \
-    -v "/home/marc/dev/de-for-fun:/home/marc/dev/de-for-fun@agent:0"
+    -p "9092:9092@loadbalancer" \
+    -p "8083:8083@loadbalancer" \
+    -v "${REPO_ROOT}:${CLUSTER_REPO_PATH}@server:0"
   
   echo "Cluster '${CLUSTER_NAME}' created successfully."
 fi

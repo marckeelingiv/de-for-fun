@@ -70,6 +70,7 @@ metadata:
   labels:
     app: minio
 spec:
+  type: LoadBalancer
   ports:
     - name: api
       port: 9000

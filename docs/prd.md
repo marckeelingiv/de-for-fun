@@ -14,6 +14,7 @@ To balance production-grade architectures with a lightweight local developer exp
 
 | Component | Local Development (Sandbox) | Production Reference | Rationale |
 | :--- | :--- | :--- | :--- |
+| **Ingestion Queue** | **Redpanda** (deployed on k3s) | **Redpanda / Kafka / Kinesis** | High-throughput, Kafka-compatible event queue to buffer transactions and prevent write bottlenecks. |
 | **Storage Layer** | **MinIO** (deployed on k3s) | **AWS S3 / Cloud Storage** | S3 API compatibility; zero cloud costs during local dev; partitioned Parquet. |
 | **Data Generation**| **Python + uv + Polars / PyArrow** | **Polars / Custom Worker Jobs** | Polars is single-node, multi-threaded, and blazingly fast with no JVM overhead. |
 | **Compute Engines** | **DuckDB** | **DuckDB / MotherDuck / Athena** | **DuckDB** via `httpfs` for serverless local queries on the same Parquet files. |
@@ -70,17 +71,29 @@ To maintain a clean, local-first developer experience, the entire toolchain must
 
 ### Step 1: Bootstrap Local Storage & Services
 Use Kubernetes manifests (located in the `k3s/` directory) to deploy the services to your local k3s cluster:
-* MinIO (S3-compatible storage with PVC, Service, and Deployment)
-* DuckDB Shared Storage (PersistentVolumeClaim to store the shared `.db` files)
-* Lightdash (Service and Deployment connected to DuckDB)
-* Dagster (Service and Deployment for orchestration)
+* **MinIO:** S3-compatible storage with PVC, Service, and Deployment.
+* **Redpanda:** Event broker and schema registry with PVC, Deployment, Service, and Redpanda Console.
+* **DuckDB Shared Storage:** PersistentVolumeClaim to store the shared `.db` files.
+* **Lightdash:** Service and Deployment connected to DuckDB.
+* **Dagster:** Service and Deployment for orchestration.
 
 A lightweight bootstrapping Python script (managed via `uv run`) will run post-deployment to create the `data-lakehouse` bucket and set up standard access credentials.
 
-### Step 2: Multi-threaded Synthetic Data Generation
-Execute a high-performance Python script using `uv run`. 
+### Step 2: Synthetic Data Generation & Queuing
+Execute a high-performance Python script using `uv run`.
 * Uses **Polars** or **PyArrow** to generate 50M+ rows of hyper-realistic time-series data matching the schemas above.
-* Streams partitioned Parquet files directly into the local MinIO bucket via `s3fs` or `boto3`.
+* Streams events as serialized JSON records into designated Redpanda topics:
+  * `seg.fan-pings`
+  * `seg.pos-transactions`
+  * `podium.interaction-events`
+  * `podium.ai-telemetry`
+
+### Step 2b: Stream Buffering & S3/MinIO Writing
+Run the stream buffer consumer (`src/buffer_writer.py`):
+* Consumes events from the Redpanda topics asynchronously using `aiokafka`.
+* Accumulates events in memory to optimize writes.
+* Flushes to MinIO as partitioned Parquet files when a batch reaches **10,000 records** or after **30 seconds of inactivity**.
+* Commits consumer offsets to Redpanda only after the files are safely persisted in the S3 bucket.
 
 ### Step 3: Mount Compute Layers
 * **DuckDB:** Query the files directly over HTTP using the `httpfs` extension:

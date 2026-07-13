@@ -8,3 +8,17 @@ wheels/
 
 # Virtual environments
 .venv
+
+# dbt-generated files
+dbt_project/.user.yml
+dbt_project/logs/
+dbt_project/target/
+
+# Dagster runtime state
+src/orchestration/dagster.yaml
+src/orchestration/history/
+src/orchestration/schedules/
+
+# Local DuckDB databases
+*.duckdb
+*.duckdb.wal

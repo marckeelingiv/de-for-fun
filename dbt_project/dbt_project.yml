@@ -1,0 +1,14 @@
+name: project_sandbox
+version: 1.0.0
+config-version: 2
+
+profile: project_sandbox
+
+model-paths:
+  - models
+
+models:
+  project_sandbox:
+    +materialized: table
+    base:
+      +materialized: table

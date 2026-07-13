@@ -17,17 +17,18 @@ spec:
     spec:
       containers:
         - name: dagster
-          image: ghcr.io/astral-sh/uv:python3.11-bookworm-slim
+          image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
           imagePullPolicy: IfNotPresent
           command: ["/bin/sh", "-c"]
           args:
             - |
               cd /app
               uv sync
-              uv run dagster dev -h 0.0.0.0 -p 3000
+              mkdir -p "$DAGSTER_HOME"
+              uv run dagster dev -h 0.0.0.0 -p 3000 -f src/orchestration/definitions.py
           env:
             - name: DAGSTER_HOME
-              value: /app/src/orchestration
+              value: /app/data/dagster_home
             - name: POSTGRES_DB
               value: metadata
             - name: POSTGRES_USER
@@ -44,6 +45,8 @@ spec:
               value: minioadmin
             - name: DUCKDB_PATH
               value: /app/data/dev.duckdb
+            - name: UV_PROJECT_ENVIRONMENT
+              value: /app/data/.venv
           ports:
             - containerPort: 3000
               name: dagster-ui
@@ -62,7 +65,7 @@ spec:
       volumes:
         - name: app-volume
           hostPath:
-            path: /home/marc/dev/de-for-fun
+            path: /workspace/de-for-fun
             type: Directory
         - name: duckdb-volume
           persistentVolumeClaim:
@@ -76,6 +79,7 @@ metadata:
   labels:
     app: dagster
 spec:
+  type: LoadBalancer
   ports:
     - port: 3000
       targetPort: 3000

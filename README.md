@@ -108,7 +108,23 @@ make status
 * **MinIO Console:** [http://localhost:9001](http://localhost:9001) (Credentials: `minioadmin` / `minioadmin`)
 * **Redpanda Console:** [http://localhost:8083](http://localhost:8083)
 
-### 6. Clean Up
+### 6. Generate Synthetic Data & Buffer to MinIO
+
+Generate synthetic data and stream it to Redpanda:
+```bash
+make generate              # 100K rows (default)
+make generate ROWS=500000  # Custom row count
+make generate-full         # 50M+ rows (full scale)
+```
+
+Start the buffer writer to consume from Redpanda and write partitioned Parquet files to MinIO (run in a separate terminal):
+```bash
+make buffer
+```
+
+Verify data in MinIO Console at [http://localhost:9001](http://localhost:9001) — look for `data-lakehouse/{domain}/{table}/year=YYYY/month=MM/` partitioned Parquet files.
+
+### 7. Clean Up
 Tear down the cluster and delete container configurations cleanly:
 ```bash
 make down
@@ -122,9 +138,14 @@ make down
 ├── docs/                 # Product requirements and task checklists
 ├── k3s/                  # Kubernetes manifests (MinIO, Postgres, Dagster, Lightdash)
 ├── scripts/              # Infrastructure orchestration scripts
-├── src/                  # Application source code (Data generator, MCP server)
-│   ├── orchestration/    # Dagster asset definitions
-│   └── mcp_server.py     # FastMCP semantic layer server
+├── src/
+│   ├── config.py              # Shared config (Redpanda, MinIO, schemas, topics)
+│   ├── generator_seg.py       # SEG data generator (fan_pings, pos_transactions)
+│   ├── generator_podium.py    # Podium data generator (interaction_events, ai_telemetry)
+│   ├── generator.py           # Combined generator orchestrator
+│   ├── buffer_writer.py       # Redpanda consumer → MinIO Parquet writer
+│   ├── bootstrap_storage.py   # MinIO bucket setup
+│   └── orchestration/         # Dagster asset definitions
 ├── dbt_project/          # dbt transformations and semantic metrics
 ├── Makefile              # Project shortcuts
 └── pyproject.toml        # Python dependencies managed by uv

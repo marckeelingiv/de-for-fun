@@ -36,4 +36,9 @@ wait_for_deployment lightdash
 echo "=== Bootstrapping MinIO Storage ==="
 kubectl exec deployment/dagster -- sh -c 'cd /app && env MINIO_ENDPOINT=http://minio:9000 uv run python src/bootstrap_storage.py'
 
+echo "=== Creating Redpanda Topics ==="
+for topic in seg.fan-pings seg.pos-transactions podium.interaction-events podium.ai-telemetry; do
+  kubectl exec deployment/redpanda -- rpk topic create "$topic" || true
+done
+
 echo "=== All Services Deployed and Ready! ==="

@@ -16,10 +16,10 @@ This list details the sequential tasks required to build the Project Sandbox. Ea
 - [x] Write storage bootstrapping script `src/bootstrap_storage.py` to auto-create MinIO buckets (Done)
 
 ## Phase 2: Synthetic Data Ingestion & Buffering (Redpanda & Polars)
-- [ ] Design and implement SEG data generation schema logic producing events to Redpanda in `src/generator_seg.py` (Est: 2h)
-- [ ] Design and implement Podium data generation schema logic producing events to Redpanda in `src/generator_podium.py` (Est: 2h)
-- [ ] Combine generators into a multi-threaded producer script `src/generator.py` streaming events to Redpanda (Est: 2h)
-- [ ] Design and implement `src/buffer_writer.py` to consume from Redpanda and write partitioned Parquet files to MinIO (Est: 3h)
+- [x] Design and implement SEG data generation schema logic producing events to Redpanda in `src/generator_seg.py` (Done)
+- [x] Design and implement Podium data generation schema logic producing events to Redpanda in `src/generator_podium.py` (Done)
+- [x] Combine generators into a multi-threaded producer script `src/generator.py` streaming events to Redpanda (Done)
+- [x] Design and implement `src/buffer_writer.py` to consume from Redpanda and write partitioned Parquet files to MinIO (Done)
 
 ## Phase 3: Compute Mounting & DuckDB Setup
 - [ ] Write DuckDB view registration script `src/mount_duckdb.py` to create views over MinIO Parquet files via `httpfs` (Est: 1.5h)

@@ -124,7 +124,18 @@ make buffer
 
 Verify data in MinIO Console at [http://localhost:9001](http://localhost:9001) — look for `data-lakehouse/{domain}/{table}/year=YYYY/month=MM/` partitioned Parquet files.
 
-### 7. Clean Up
+### 7. Mount Compute & Query Data
+
+Mount DuckDB views over the Parquet files in MinIO (requires data to have been buffered):
+```bash
+make mount              # Create DuckDB views via httpfs over MinIO Parquet
+make query              # Run analytical aggregation queries (fan density, sales velocity, sentiment)
+make verify             # Validate row counts, schema integrity, and partition columns
+```
+
+The DuckDB database is persisted at `data/compute.duckdb` and can be reused by dbt and other tools.
+
+### 8. Clean Up
 Tear down the cluster and delete container configurations cleanly:
 ```bash
 make down
@@ -144,6 +155,9 @@ make down
 │   ├── generator_podium.py    # Podium data generator (interaction_events, ai_telemetry)
 │   ├── generator.py           # Combined generator orchestrator
 │   ├── buffer_writer.py       # Redpanda consumer → MinIO Parquet writer
+│   ├── mount_duckdb.py        # DuckDB view registration over MinIO Parquet
+│   ├── query_duckdb.py        # Analytical query suite on Parquet views
+│   ├── verify_data.py         # Parquet row count and schema validation
 │   ├── bootstrap_storage.py   # MinIO bucket setup
 │   └── orchestration/         # Dagster asset definitions
 ├── dbt_project/          # dbt transformations and semantic metrics

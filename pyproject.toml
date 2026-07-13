@@ -14,5 +14,6 @@ dependencies = [
     "dagster-webserver>=1.6.0",
     "dbt-core>=1.7.0",
     "dbt-duckdb>=1.7.0",
+    "duckdb>=1.0.0",
     "fastmcp>=0.1.0",
 ]

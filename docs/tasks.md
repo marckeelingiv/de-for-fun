@@ -22,9 +22,9 @@ This list details the sequential tasks required to build the Project Sandbox. Ea
 - [x] Design and implement `src/buffer_writer.py` to consume from Redpanda and write partitioned Parquet files to MinIO (Done)
 
 ## Phase 3: Compute Mounting & DuckDB Setup
-- [ ] Write DuckDB view registration script `src/mount_duckdb.py` to create views over MinIO Parquet files via `httpfs` (Est: 1.5h)
-- [ ] Write analytical query test suite in `src/query_duckdb.py` to run aggregations on the Parquet views (Est: 1.5h)
-- [ ] Write validation test `src/verify_data.py` to verify Parquet row counts and schema integrity (Est: 1.5h)
+- [x] Write DuckDB view registration script `src/mount_duckdb.py` to create views over MinIO Parquet files via `httpfs` (Done)
+- [x] Write analytical query test suite in `src/query_duckdb.py` to run aggregations on the Parquet views (Done)
+- [x] Write validation test `src/verify_data.py` to verify Parquet row counts and schema integrity (Done)
 
 ## Phase 4: dbt Models & Dagster Orchestration
 - [ ] Initialize dbt project and configure `profiles.yml` for DuckDB (Est: 1.5h)

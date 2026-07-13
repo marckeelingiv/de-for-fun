@@ -1,6 +1,6 @@
 ROWS ?= 100000
 
-.PHONY: help setup up down deploy status dashboard generate generate-full buffer
+.PHONY: help setup up down deploy status dashboard generate generate-full buffer mount query verify
 
 help:
 	@echo "Available commands:"
@@ -13,6 +13,9 @@ help:
 	@echo "  make generate      - Generate synthetic data and stream to Redpanda (ROWS=$(ROWS))"
 	@echo "  make generate-full - Generate 50M+ rows at full scale"
 	@echo "  make buffer        - Start buffer writer (Redpanda → MinIO Parquet)"
+	@echo "  make mount         - Mount DuckDB views over MinIO Parquet files via httpfs"
+	@echo "  make query         - Run analytical queries on the Parquet views"
+	@echo "  make verify        - Verify Parquet row counts and schema integrity"
 
 setup:
 	@./scripts/install_k3d.sh
@@ -55,3 +58,15 @@ generate-full:
 buffer:
 	@echo "=== Starting buffer writer (Redpanda → MinIO Parquet) ==="
 	@uv run python src/buffer_writer.py
+
+mount:
+	@echo "=== Mounting DuckDB views over MinIO Parquet files ==="
+	@uv run python src/mount_duckdb.py
+
+query:
+	@echo "=== Running analytical queries on Parquet views ==="
+	@uv run python src/query_duckdb.py
+
+verify:
+	@echo "=== Verifying Parquet data integrity ==="
+	@uv run python src/verify_data.py

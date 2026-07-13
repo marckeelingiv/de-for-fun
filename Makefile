@@ -1,6 +1,6 @@
 ROWS ?= 100000
 
-.PHONY: help setup up down deploy status dashboard generate generate-full buffer mount query verify
+.PHONY: help setup up down deploy status dashboard generate generate-full buffer mount query verify dbt-debug dbt-parse dbt-compile dbt-run dbt-test orchestrate
 
 help:
 	@echo "Available commands:"
@@ -16,6 +16,12 @@ help:
 	@echo "  make mount         - Mount DuckDB views over MinIO Parquet files via httpfs"
 	@echo "  make query         - Run analytical queries on the Parquet views"
 	@echo "  make verify        - Verify Parquet row counts and schema integrity"
+	@echo "  make dbt-debug     - Check dbt connection and configuration"
+	@echo "  make dbt-parse     - Parse dbt models (validate syntax)"
+	@echo "  make dbt-compile   - Compile dbt models to SQL"
+	@echo "  make dbt-run       - Run dbt models (build tables/views in DuckDB)"
+	@echo "  make dbt-test      - Run dbt data tests"
+	@echo "  make orchestrate   - Start Dagster UI for orchestration"
 
 setup:
 	@./scripts/install_k3d.sh
@@ -70,3 +76,27 @@ query:
 verify:
 	@echo "=== Verifying Parquet data integrity ==="
 	@uv run python src/verify_data.py
+
+dbt-debug:
+	@echo "=== Checking dbt connection ==="
+	@DUCKDB_PATH=$(CURDIR)/dbt_project/target/dev.duckdb uv run dbt debug --project-dir dbt_project --profiles-dir dbt_project
+
+dbt-parse:
+	@echo "=== Parsing dbt models ==="
+	@uv run dbt parse --project-dir dbt_project --profiles-dir dbt_project
+
+dbt-compile:
+	@echo "=== Compiling dbt models ==="
+	@DUCKDB_PATH=$(CURDIR)/dbt_project/target/dev.duckdb uv run dbt compile --project-dir dbt_project --profiles-dir dbt_project
+
+dbt-run:
+	@echo "=== Running dbt models ==="
+	@DUCKDB_PATH=$(CURDIR)/dbt_project/target/dev.duckdb uv run dbt run --project-dir dbt_project --profiles-dir dbt_project
+
+dbt-test:
+	@echo "=== Running dbt tests ==="
+	@DUCKDB_PATH=$(CURDIR)/dbt_project/target/dev.duckdb uv run dbt test --project-dir dbt_project --profiles-dir dbt_project
+
+orchestrate:
+	@echo "=== Starting Dagster UI ==="
+	@uv run dagster dev -h 0.0.0.0 -p 3000 -f src/orchestration/definitions.py

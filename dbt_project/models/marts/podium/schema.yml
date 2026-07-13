@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: mtt_merchant_sentiment
+    description: "Merchant sentiment analysis by tenant and merchant. Aggregates interaction volume, sentiment scores, and channel/direction ratios."
+    columns:
+      - name: tenant_id
+        tests: [not_null]
+      - name: merchant_id
+        tests: [not_null]
+      - name: interaction_count
+        tests: [not_null]
+      - name: sentiment_score
+        tests: [not_null]
+
+  - name: mtt_ai_slas
+    description: "AI service SLA analysis by tenant. Includes latency percentiles (p50/p95/p99), token consumption, and SLA compliance rate."
+    columns:
+      - name: tenant_id
+        tests: [not_null]
+      - name: telemetry_count
+        tests: [not_null]
+      - name: sla_compliance_rate
+        tests: [not_null]

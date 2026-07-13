@@ -43,6 +43,8 @@ spec:
               value: minioadmin
             - name: MINIO_SECRET_KEY
               value: minioadmin
+            - name: MINIO_S3_ENDPOINT
+              value: minio:9000
             - name: DUCKDB_PATH
               value: /app/data/dev.duckdb
             - name: UV_PROJECT_ENVIRONMENT

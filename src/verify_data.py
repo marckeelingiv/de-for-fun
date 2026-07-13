@@ -117,7 +117,7 @@ def verify_partitions(con: duckdb.DuckDBPyConnection, views: dict[str, str]) -> 
     for view_name in views:
         try:
             result = con.execute(
-                f"SELECT DISTINCT year, month FROM {view_name} ORDER BY year, month"
+                f"SELECT DISTINCT tenant_id, year, month FROM {view_name} ORDER BY tenant_id, year, month"
             ).fetchall()
         except Exception as e:
             print(f"  ERROR: Failed to query partitions in {view_name}: {e}")
@@ -131,9 +131,9 @@ def verify_partitions(con: duckdb.DuckDBPyConnection, views: dict[str, str]) -> 
 
         valid = True
         for row in result:
-            year, month = row
+            tenant_id, year, month = row
             month_int = int(month)
-            print(f"    year={year}, month={month_int}")
+            print(f"    tenant_id={tenant_id}, year={year}, month={month_int}")
             if not (1900 <= year <= 2100):
                 print(f"      FAIL: invalid year {year}")
                 valid = False

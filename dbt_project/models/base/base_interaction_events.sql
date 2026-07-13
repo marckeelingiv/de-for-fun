@@ -1,5 +1,6 @@
 select
     cast(timestamp as timestamp) as timestamp,
+    cast(interaction_id as varchar) as interaction_id,
     cast(merchant_id as varchar) as merchant_id,
     cast(customer_id as varchar) as customer_id,
     cast(channel as varchar) as channel,

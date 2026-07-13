@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 import polars as pl
 from aiokafka import AIOKafkaProducer
 
-from src.config import GeneratorConfig, RedpandaConfig, Topic
+from src.config import GeneratorConfig, RedpandaConfig, Topic, PODIUM_TENANTS
 
 MERCHANT_POOL_SIZE = 200
 CUSTOMER_POOL_SIZE = 10_000
@@ -70,8 +70,10 @@ def generate_interaction_events(
     customer_ids = rng.choices(customers, k=num_rows)
     channels = rng.choices(_CHANNELS, weights=_CHANNEL_WEIGHTS, k=num_rows)
     directions = rng.choices(_DIRECTIONS, weights=_DIRECTION_WEIGHTS, k=num_rows)
+    tenant_ids = rng.choices(PODIUM_TENANTS, k=num_rows)
     return pl.DataFrame(
         {
+            "tenant_id": tenant_ids,
             "interaction_id": interaction_ids,
             "timestamp": timestamps,
             "merchant_id": merchant_ids,
@@ -80,6 +82,7 @@ def generate_interaction_events(
             "direction": directions,
         },
         schema={
+            "tenant_id": pl.Utf8,
             "interaction_id": pl.Utf8,
             "timestamp": pl.Datetime,
             "merchant_id": pl.Utf8,
@@ -94,6 +97,7 @@ def generate_ai_telemetry(interaction_ids: list[str], seed: int) -> pl.DataFrame
     rng = random.Random(seed)
     n = len(interaction_ids)
     timestamps = _generate_business_timestamps(n, rng)
+    tenant_ids = rng.choices(PODIUM_TENANTS, k=n)
     prompt_tokens: list[int] = []
     completion_tokens: list[int] = []
     sentiment_scores: list[float] = []
@@ -107,6 +111,7 @@ def generate_ai_telemetry(interaction_ids: list[str], seed: int) -> pl.DataFrame
         latencies.append(max(50, min(5000, int(rng.lognormvariate(5.5, 0.6)))))
     return pl.DataFrame(
         {
+            "tenant_id": tenant_ids,
             "timestamp": timestamps,
             "interaction_id": interaction_ids,
             "prompt_tokens": prompt_tokens,
@@ -115,6 +120,7 @@ def generate_ai_telemetry(interaction_ids: list[str], seed: int) -> pl.DataFrame
             "latency_ms": latencies,
         },
         schema={
+            "tenant_id": pl.Utf8,
             "timestamp": pl.Datetime,
             "interaction_id": pl.Utf8,
             "prompt_tokens": pl.Int32,

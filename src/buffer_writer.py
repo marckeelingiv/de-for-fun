@@ -85,13 +85,13 @@ class TopicBuffer:
             pl.col("timestamp").dt.year().alias("_year"),
             pl.col("timestamp").dt.month().alias("_month"),
         )
-        partitions = df.partition_by(["_year", "_month"], as_dict=True)
+        partitions = df.partition_by(["_year", "_month", "tenant_id"], as_dict=True)
         for key, part_df in partitions.items():
-            year, month = key[0], key[1]
+            year, month, tenant_id = key[0], key[1], key[2]
             part_df = part_df.drop(["_year", "_month"])
             batch_id = f"batch_{uuid.uuid4().hex[:12]}"
             object_path = build_partition_path(
-                self.domain, self.table, year, month, batch_id
+                self.domain, self.table, tenant_id, year, month, batch_id
             )
             table = part_df.to_arrow()
             out = io.BytesIO()

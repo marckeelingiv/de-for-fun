@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 import polars as pl
 from aiokafka import AIOKafkaProducer
 
-from src.config import RedpandaConfig, Topic, GeneratorConfig
+from src.config import RedpandaConfig, Topic, GeneratorConfig, SEG_TENANTS
 
 BEACON_COORDS: dict[str, tuple[float, float]] = {
     "entrance_north": (50.0, 95.0),
@@ -111,6 +111,7 @@ def generate_fan_pings(num_rows: int, seed: int) -> pl.DataFrame:
     rng = random.Random(seed + 1)
     beacons = list(BEACON_COORDS.keys())
 
+    tenant_ids = rng.choices(SEG_TENANTS, k=num_rows)
     device_ids = rng.choices(device_pool, k=num_rows)
     beacon_ids = rng.choices(beacons, k=num_rows)
 
@@ -135,6 +136,7 @@ def generate_fan_pings(num_rows: int, seed: int) -> pl.DataFrame:
 
     return pl.DataFrame(
         {
+            "tenant_id": tenant_ids,
             "timestamp": timestamps,
             "device_id": device_ids,
             "beacon_id": beacon_ids,
@@ -143,6 +145,7 @@ def generate_fan_pings(num_rows: int, seed: int) -> pl.DataFrame:
             "estimated_dwell_time": dwell_times,
         },
         schema={
+            "tenant_id": pl.Utf8,
             "timestamp": pl.Datetime,
             "device_id": pl.Utf8,
             "beacon_id": pl.Utf8,
@@ -160,6 +163,7 @@ def generate_pos_transactions(num_rows: int, seed: int) -> pl.DataFrame:
     window_durations = [int((w[1] - w[0]).total_seconds()) for w in POS_TIME_WINDOWS]
     window_weights = [w[2] for w in POS_TIME_WINDOWS]
 
+    tenant_ids = rng.choices(SEG_TENANTS, k=num_rows)
     timestamps: list[datetime] = []
     transaction_ids: list[str] = []
     vendor_ids: list[str] = []
@@ -187,6 +191,7 @@ def generate_pos_transactions(num_rows: int, seed: int) -> pl.DataFrame:
 
     return pl.DataFrame(
         {
+            "tenant_id": tenant_ids,
             "timestamp": timestamps,
             "transaction_id": transaction_ids,
             "vendor_id": vendor_ids,
@@ -195,6 +200,7 @@ def generate_pos_transactions(num_rows: int, seed: int) -> pl.DataFrame:
             "payment_method": payment_methods,
         },
         schema={
+            "tenant_id": pl.Utf8,
             "timestamp": pl.Datetime,
             "transaction_id": pl.Utf8,
             "vendor_id": pl.Utf8,

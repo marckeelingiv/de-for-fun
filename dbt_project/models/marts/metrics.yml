@@ -1,0 +1,61 @@
+version: 2
+
+metrics:
+  - name: total_revenue
+    description: "Total revenue across all POS transactions"
+    label: Total Revenue
+    type: simple
+    type_params:
+      measure: total_revenue
+
+  - name: average_dwell_time
+    description: "Average dwell time in arena zones"
+    label: Average Dwell Time
+    type: simple
+    type_params:
+      measure: avg_dwell_time
+
+  - name: arena_bottleneck_ratio
+    description: "Bottleneck ratio measuring high-dwell pings as a proportion of total pings"
+    label: Arena Bottleneck Ratio
+    type: simple
+    type_params:
+      measure: bottleneck_ratio
+
+  - name: transaction_count
+    description: "Total number of POS transactions"
+    label: Transaction Count
+    type: simple
+    type_params:
+      measure: transaction_count
+
+  - name: sales_velocity
+    description: "Average revenue per transaction"
+    label: Sales Velocity (Revenue per Transaction)
+    type: derived
+    type_params:
+      expr: "total_revenue / NULLIF(transaction_count, 0)"
+      metrics:
+        - name: total_revenue
+        - name: transaction_count
+
+  - name: merchant_sentiment_score
+    description: "Average sentiment score across merchant interactions"
+    label: Merchant Sentiment Score
+    type: simple
+    type_params:
+      measure: avg_sentiment
+
+  - name: ai_sla_compliance
+    description: "AI service SLA compliance rate"
+    label: AI SLA Compliance Rate
+    type: simple
+    type_params:
+      measure: sla_compliance_rate
+
+  - name: ai_token_consumption
+    description: "Total AI tokens consumed"
+    label: AI Token Consumption
+    type: simple
+    type_params:
+      measure: total_tokens_consumed

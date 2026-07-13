@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: stg_fan_pings
+    description: "Staged SEG fan ping telemetry with derived zone and dwell-time classification columns."
+    columns:
+      - name: tenant_id
+        tests: [not_null]
+      - name: device_id
+        tests: [not_null]
+      - name: beacon_id
+        tests: [not_null]
+      - name: timestamp
+        tests: [not_null]
+
+  - name: stg_pos_transactions
+    description: "Staged SEG POS transactions with derived price tier and peak window classification."
+    columns:
+      - name: tenant_id
+        tests: [not_null]
+      - name: transaction_id
+        tests: [not_null, unique]
+      - name: vendor_id
+        tests: [not_null]
+      - name: amount
+        tests: [not_null]

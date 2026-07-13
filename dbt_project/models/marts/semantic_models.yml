@@ -1,0 +1,154 @@
+version: 2
+
+semantic_models:
+  - name: arena_bottlenecks
+    description: "Arena congestion analysis by tenant, zone, beacon, and hour."
+    model: ref('mtt_arena_bottlenecks')
+    defaults:
+      agg_time_dimension: date_day
+    entities:
+      - name: tenant_id
+        type: foreign
+      - name: beacon_id
+        type: primary
+    dimensions:
+      - name: date_day
+        type: time
+        type_params:
+          time_granularity: day
+      - name: zone
+        type: categorical
+      - name: hour_of_day
+        type: categorical
+        expr: hour
+      - name: congestion_level
+        type: categorical
+    measures:
+      - name: total_pings
+        agg: sum
+        expr: ping_count
+      - name: avg_dwell_time
+        agg: average
+        expr: avg_dwell_time
+      - name: max_dwell_time
+        agg: max
+        expr: max_dwell_time
+      - name: high_dwell_count
+        agg: sum
+        expr: high_dwell_count
+      - name: bottleneck_ratio
+        agg: average
+        expr: bottleneck_ratio
+
+  - name: dynamic_pricing
+    description: "POS transaction analysis for dynamic pricing by tenant, vendor, item, and hour."
+    model: ref('mtt_dynamic_pricing')
+    defaults:
+      agg_time_dimension: date_day
+    entities:
+      - name: tenant_id
+        type: foreign
+      - name: vendor_id
+        type: primary
+    dimensions:
+      - name: date_day
+        type: time
+        type_params:
+          time_granularity: day
+      - name: item_id
+        type: categorical
+      - name: hour_of_day
+        type: categorical
+        expr: hour
+      - name: is_peak_window
+        type: categorical
+    measures:
+      - name: total_revenue
+        agg: sum
+        expr: total_revenue
+      - name: transaction_count
+        agg: sum
+        expr: transaction_count
+      - name: avg_price
+        agg: average
+        expr: avg_price
+      - name: demand_index
+        agg: average
+        expr: demand_index
+
+  - name: merchant_sentiment
+    description: "Merchant sentiment analysis by tenant and merchant."
+    model: ref('mtt_merchant_sentiment')
+    defaults:
+      agg_time_dimension: date_day
+    entities:
+      - name: tenant_id
+        type: foreign
+      - name: merchant_id
+        type: primary
+    dimensions:
+      - name: date_day
+        type: time
+        type_params:
+          time_granularity: day
+    measures:
+      - name: interaction_count
+        agg: sum
+        expr: interaction_count
+      - name: ai_interaction_count
+        agg: sum
+        expr: ai_interaction_count
+      - name: avg_sentiment
+        agg: average
+        expr: sentiment_score
+      - name: positive_sentiment_count
+        agg: sum
+        expr: positive_sentiment_count
+      - name: negative_sentiment_count
+        agg: sum
+        expr: negative_sentiment_count
+      - name: sentiment_ratio
+        agg: average
+        expr: sentiment_ratio
+
+  - name: ai_slas
+    description: "AI service SLA analysis by tenant including latency percentiles and compliance."
+    model: ref('mtt_ai_slas')
+    defaults:
+      agg_time_dimension: date_day
+    entities:
+      - name: tenant_id
+        type: primary
+    dimensions:
+      - name: date_day
+        type: time
+        type_params:
+          time_granularity: day
+    measures:
+      - name: telemetry_count
+        agg: sum
+        expr: telemetry_count
+      - name: total_tokens_consumed
+        agg: sum
+        expr: total_tokens_consumed
+      - name: avg_latency_ms
+        agg: average
+        expr: avg_latency_ms
+      - name: p50_latency
+        agg: average
+        expr: p50_latency
+      - name: p95_latency
+        agg: average
+        expr: p95_latency
+      - name: p99_latency
+        agg: average
+        expr: p99_latency
+      - name: sla_met_count
+        agg: sum
+        expr: sla_met_count
+      - name: sla_breached_count
+        agg: sum
+        expr: sla_breached_count
+      - name: sla_compliance_rate
+        agg: average
+        expr: sla_compliance_rate

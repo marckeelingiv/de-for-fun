@@ -135,7 +135,28 @@ make verify             # Validate row counts, schema integrity, and partition c
 
 The DuckDB database is persisted at `data/compute.duckdb` and can be reused by dbt and other tools.
 
-### 8. Clean Up
+### 8. Run dbt Transformations & Semantic Layer
+
+dbt models build staging views and aggregate marts on top of the MinIO Parquet files via DuckDB:
+```bash
+make dbt-parse             # Parse and validate dbt model syntax
+make dbt-compile           # Compile dbt models to SQL
+make dbt-run               # Build tables/views in DuckDB (requires MinIO data)
+make dbt-test              # Run dbt data quality tests
+```
+
+The dbt project includes 13 models (4 base, 4 staging, 4 marts, 1 time spine), 4 semantic models, and 8 metrics for the AI semantic layer.
+
+### 9. Orchestrate with Dagster
+
+Start the Dagster UI to run and monitor the full pipeline (generator -> buffer -> verify -> dbt):
+```bash
+make orchestrate           # Start Dagster UI at http://localhost:3000
+```
+
+The Dagster instance exposes 20 assets: synthetic data generation, buffer writing, data verification, and all dbt models auto-discovered from the manifest.
+
+### 10. Clean Up
 Tear down the cluster and delete container configurations cleanly:
 ```bash
 make down
@@ -159,8 +180,8 @@ make down
 │   ├── query_duckdb.py        # Analytical query suite on Parquet views
 │   ├── verify_data.py         # Parquet row count and schema validation
 │   ├── bootstrap_storage.py   # MinIO bucket setup
-│   └── orchestration/         # Dagster asset definitions
-├── dbt_project/          # dbt transformations and semantic metrics
+│   └── orchestration/         # Dagster asset definitions (generator → dbt pipeline)
+├── dbt_project/          # dbt models (base, staging, marts), semantic layer, and metrics
 ├── Makefile              # Project shortcuts
 └── pyproject.toml        # Python dependencies managed by uv
 ```

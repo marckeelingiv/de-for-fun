@@ -27,11 +27,11 @@ This list details the sequential tasks required to build the Project Sandbox. Ea
 - [x] Write validation test `src/verify_data.py` to verify Parquet row counts and schema integrity (Done)
 
 ## Phase 4: dbt Models & Dagster Orchestration
-- [ ] Initialize dbt project and configure `profiles.yml` for DuckDB (Est: 1.5h)
-- [ ] Write SEG dbt models (staging, aggregate marts for bottlenecks and dynamic pricing) (Est: 2h)
-- [ ] Write Podium dbt models (staging, aggregate marts for merchant sentiment and AI SLAs) (Est: 2h)
-- [ ] Define dbt semantic layer metrics (YAML configurations for dimensions, measures, aggregates) (Est: 2h)
-- [ ] Implement Dagster software-defined assets in `src/orchestration/` mapping generator -> dbt (Est: 3h)
+- [x] Initialize dbt project and configure `profiles.yml` for DuckDB (Done)
+- [x] Write SEG dbt models (staging, aggregate marts for bottlenecks and dynamic pricing) (Done)
+- [x] Write Podium dbt models (staging, aggregate marts for merchant sentiment and AI SLAs) (Done)
+- [x] Define dbt semantic layer metrics (YAML configurations for dimensions, measures, aggregates) (Done)
+- [x] Implement Dagster software-defined assets in `src/orchestration/` mapping generator -> dbt (Done)
 
 ## Phase 5: Lightdash Semantic MCP Server
 - [ ] Write custom Lightdash MCP server in `src/mcp_server.py` using `fastmcp` (Est: 3h)

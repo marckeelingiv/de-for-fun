@@ -9,6 +9,8 @@ sources:
       - name: fan_pings
         description: Fan/device location pings from arena beacon telemetry.
         columns:
+          - name: tenant_id
+            data_type: varchar
           - name: timestamp
             data_type: timestamp
           - name: device_id
@@ -24,6 +26,8 @@ sources:
       - name: pos_transactions
         description: Point-of-sale transaction events from arena vendors.
         columns:
+          - name: tenant_id
+            data_type: varchar
           - name: timestamp
             data_type: timestamp
           - name: transaction_id
@@ -45,8 +49,12 @@ sources:
       - name: interaction_events
         description: Merchant/customer communication events.
         columns:
+          - name: tenant_id
+            data_type: varchar
           - name: timestamp
             data_type: timestamp
+          - name: interaction_id
+            data_type: varchar
           - name: merchant_id
             data_type: varchar
           - name: customer_id
@@ -58,6 +66,8 @@ sources:
       - name: ai_telemetry
         description: AI conversation token, latency, and sentiment telemetry.
         columns:
+          - name: tenant_id
+            data_type: varchar
           - name: timestamp
             data_type: timestamp
           - name: interaction_id

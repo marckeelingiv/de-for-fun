@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: mtt_arena_bottlenecks
+    description: "Arena congestion analysis by tenant, zone, beacon, and hour. Identifies bottleneck ratios and congestion levels."
+    columns:
+      - name: tenant_id
+        tests: [not_null]
+      - name: zone
+        tests: [not_null]
+      - name: beacon_id
+        tests: [not_null]
+      - name: bottleneck_ratio
+        tests: [not_null]
+      - name: congestion_level
+        tests: [not_null]
+
+  - name: mtt_dynamic_pricing
+    description: "POS transaction analysis for dynamic pricing by tenant, vendor, item, and hour. Includes demand index and revenue ranking."
+    columns:
+      - name: tenant_id
+        tests: [not_null]
+      - name: vendor_id
+        tests: [not_null]
+      - name: item_id
+        tests: [not_null]
+      - name: total_revenue
+        tests: [not_null]

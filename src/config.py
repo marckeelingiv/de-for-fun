@@ -32,7 +32,11 @@ TOPIC_TO_TABLE: dict[str, str] = {
 
 ALL_TOPICS = [t.value for t in Topic]
 
+SEG_TENANTS: list[str] = ["seg_001", "seg_002", "seg_003"]
+PODIUM_TENANTS: list[str] = ["podium_001", "podium_002", "podium_003"]
+
 FAN_PINGS_SCHEMA: dict[str, str] = {
+    "tenant_id": "str",
     "timestamp": "datetime",
     "device_id": "str",
     "beacon_id": "str",
@@ -42,6 +46,7 @@ FAN_PINGS_SCHEMA: dict[str, str] = {
 }
 
 POS_TRANSACTIONS_SCHEMA: dict[str, str] = {
+    "tenant_id": "str",
     "timestamp": "datetime",
     "transaction_id": "str",
     "vendor_id": "str",
@@ -51,6 +56,7 @@ POS_TRANSACTIONS_SCHEMA: dict[str, str] = {
 }
 
 INTERACTION_EVENTS_SCHEMA: dict[str, str] = {
+    "tenant_id": "str",
     "timestamp": "datetime",
     "interaction_id": "str",
     "merchant_id": "str",
@@ -60,6 +66,7 @@ INTERACTION_EVENTS_SCHEMA: dict[str, str] = {
 }
 
 AI_TELEMETRY_SCHEMA: dict[str, str] = {
+    "tenant_id": "str",
     "timestamp": "datetime",
     "interaction_id": "str",
     "prompt_tokens": "int32",
@@ -138,13 +145,13 @@ class GeneratorConfig:
         )
 
 
-def build_partition_path(domain: str, table: str, year: int, month: int, batch_id: str) -> str:
+def build_partition_path(domain: str, table: str, tenant_id: str, year: int, month: int, batch_id: str) -> str:
     month_str = f"{month:02d}"
-    return f"{domain}/{table}/year={year}/month={month_str}/{batch_id}.parquet"
+    return f"{domain}/{table}/tenant_id={tenant_id}/year={year}/month={month_str}/{batch_id}.parquet"
 
 
-def build_s3_uri(domain: str, table: str, year: int, month: int, batch_id: str) -> str:
-    path = build_partition_path(domain, table, year, month, batch_id)
+def build_s3_uri(domain: str, table: str, tenant_id: str, year: int, month: int, batch_id: str) -> str:
+    path = build_partition_path(domain, table, tenant_id, year, month, batch_id)
     bucket = MinIOConfig.from_env().bucket
     return f"s3://{bucket}/{path}"
 

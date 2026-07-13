@@ -21,10 +21,9 @@ Issues identified during development that are out of scope of the current phase 
 
 ## Orchestration
 
-### 4. Empty Dagster definitions
+### 4. ~~Empty Dagster definitions~~ (Resolved in Phase 4)
 **File:** `src/orchestration/definitions.py`  
-**Issue:** The Dagster definitions file is empty (`Definitions()` with no assets). The Dagster UI shows nothing.  
-**Scope:** This is Phase 4 work (Dagster asset definitions for generator → dbt pipeline).
+**Resolution:** Phase 4 implemented full Dagster asset definitions with 20 assets (generator -> buffer_writer -> verify -> 12 dbt models + time spine + 4 sources) using `dagster-dbt` for dbt model discovery.
 
 ### 5. No automated Redpanda topic creation in deploy script
 **File:** `scripts/deploy.sh`  
@@ -33,13 +32,40 @@ Issues identified during development that are out of scope of the current phase 
 
 ## Data & Schema
 
-### 6. dbt base models reference non-existent `tenant_id` column
+### 6. ~~dbt base models reference non-existent `tenant_id` column~~ (Resolved in Phase 4)
 **File:** `dbt_project/models/base/base_fan_pings.sql` (and all 3 other base models)  
-**Issue:** All 4 dbt base models select `cast(tenant_id as varchar) as tenant_id` and `cast(year as integer) as year` / `cast(month as integer) as month`, but no `tenant_id` column exists in the data schemas (`src/config.py`) or in the Parquet partition paths (`build_partition_path`). The `year` and `month` columns come from hive partitioning and should be available, but `tenant_id` will cause a dbt run failure.  
-**Scope:** Phase 4 (dbt Models & Dagster Orchestration).  
-**Suggested fix:** Remove `tenant_id` from all base model SELECT statements, or add `tenant_id` to the data generation schema and partition path if multi-tenant isolation is required.
+**Resolution:** Phase 4 added `tenant_id` to the data generation schemas, partition paths, and buffer writer partitioning. All base models now correctly reference `tenant_id` as a hive partition column.
 
-### 7. PRD partition path includes `tenant_id` but implementation omits it
-**File:** `src/config.py:141-143` (`build_partition_path`)  
-**Issue:** PRD §3 specifies the partition path as `s3://data-lakehouse/simulation_domain/tenant_id/year=YYYY/month=MM/` but the actual implementation uses `s3://data-lakehouse/{domain}/{table}/year=YYYY/month=MM/{batch_id}.parquet` — omitting `tenant_id` entirely. This is a spec-vs-implementation divergence. The dbt base models assume `tenant_id` exists as a hive partition column, compounding the issue.  
-**Scope:** Phase 4 — decide whether to update the implementation to match the PRD or update the PRD to match the implementation.
+### 7. ~~PRD partition path includes `tenant_id` but implementation omits it~~ (Resolved in Phase 4)
+**File:** `src/config.py` (`build_partition_path`)  
+**Resolution:** Phase 4 updated `build_partition_path()` to include `tenant_id={tenant_id}/` in the partition path, matching the PRD §3 specification. Generators now produce `tenant_id` and the buffer writer partitions by it.
+
+## Semantic Layer
+
+### 8. dbt-metricflow not installed
+**File:** `pyproject.toml`  
+**Issue:** The `dbt-metricflow` package is not in dependencies. Semantic model YAML definitions are created in Phase 4 (4 semantic models, 8 metrics), and `dbt parse` validates them, but the `dbt sl query` command for running metric queries requires this package. It is needed for Phase 5 (Lightdash MCP Server) to query metrics programmatically.  
+**Suggested fix:** Add `dbt-metricflow>=0.1.0` to `pyproject.toml` in Phase 5.
+
+### 9. ~~Existing MinIO data lacks `tenant_id` partition~~ (Resolved during Phase 4 testing)
+**Files:** MinIO `data-lakehouse` bucket  
+**Resolution:** Old data was cleared from the bucket and regenerated with `make generate ROWS=10000 && make buffer`. New data uses the `tenant_id={tenant_id}/year=YYYY/month=MM/` partition format. All 4 dbt base models, staging views, and mart tables build successfully against this data.
+
+## Testing & Operations
+
+### 10. Dagster daemon heartbeat conflicts on pod restart
+**File:** `k3s/dagster.yaml`  
+**Issue:** When the Dagster pod restarts (e.g., via `kubectl rollout restart`), the new pod's daemons log ERROR-level messages about "Another SENSOR/BACKFILL/ASSET/SCHEDULER daemon is still sending heartbeats." This is because the Dagster home directory (`/app/data/dagster_home`) is on a shared PVC (`duckdb-pvc`), so old daemon heartbeat state persists across pod restarts.  
+**Impact:** Non-fatal — the webserver serves correctly and all 20 assets load. The conflicts resolve once old heartbeats expire (~60 seconds).  
+**Suggested fix:** Add an init container that clears the `dagster_home/heartbeat` directory on pod startup, or configure a shorter heartbeat TTL in `dagster.yaml`.
+
+### 11. `data/` directory owned by root causes DuckDB persistence failure
+**Files:** `src/mount_duckdb.py`, `src/query_duckdb.py`, `src/verify_data.py`  
+**Issue:** The default DuckDB path `data/compute.duckdb` fails with a permission error when the `data/` directory is owned by root (which happens when k3s PVCs mount to that path). The Phase 3 scripts (`mount_duckdb.py`, `query_duckdb.py`, `verify_data.py`) work around this with the `--in-memory` flag, but this means the DuckDB state is not persisted between script invocations.  
+**Suggested fix:** Fix directory permissions in the k3s manifest, or configure the DuckDB path to use a user-writable location (e.g., `/tmp/compute.duckdb`).
+
+### 12. dbt `DUCKDB_PATH` must be absolute when running from repo root
+**File:** `dbt_project/profiles.yml`  
+**Issue:** The dbt profile uses `{{ env_var('DUCKDB_PATH', 'dbt_project/target/dev.duckdb') }}` which is a relative path. When running `dbt run --project-dir dbt_project` from the repo root, DuckDB tries to open the file relative to the project dir, resulting in `dbt_project/dbt_project/target/dev.duckdb` (doubled path) which doesn't exist.  
+**Workaround:** Set `DUCKDB_PATH` to an absolute path: `DUCKDB_PATH=/home/marc/dev/de-for-fun/dbt_project/target/dev.duckdb uv run dbt run --project-dir dbt_project --profiles-dir dbt_project`.  
+**Suggested fix:** Change the default in `profiles.yml` to use an absolute path or `~/.duckdb/dev.duckdb`, or update the Makefile dbt targets to always set `DUCKDB_PATH` to an absolute path.

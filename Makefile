@@ -1,6 +1,6 @@
 ROWS ?= 100000
 
-.PHONY: help setup up down deploy status dashboard generate generate-full buffer mount query verify dbt-debug dbt-parse dbt-compile dbt-run dbt-test orchestrate
+.PHONY: help setup up down deploy status dashboard generate generate-full buffer mount query verify dbt-debug dbt-parse dbt-compile dbt-run dbt-test orchestrate mcp mcp-http test-mcp
 
 help:
 	@echo "Available commands:"
@@ -22,6 +22,9 @@ help:
 	@echo "  make dbt-run       - Run dbt models (build tables/views in DuckDB)"
 	@echo "  make dbt-test      - Run dbt data tests"
 	@echo "  make orchestrate   - Start Dagster UI for orchestration"
+	@echo "  make mcp          - Start MCP server (stdio, for LLM integration)"
+	@echo "  make mcp-http     - Start MCP server (HTTP, port 8079)"
+	@echo "  make test-mcp     - Run MCP server integration tests"
 
 setup:
 	@./scripts/install_k3d.sh
@@ -100,3 +103,16 @@ dbt-test:
 orchestrate:
 	@echo "=== Starting Dagster UI ==="
 	@uv run dagster dev -h 0.0.0.0 -p 3000 -f src/orchestration/definitions.py
+
+mcp:
+	@echo "=== Starting MCP server (stdio transport for LLM integration) ==="
+	@uv run python src/mcp_server.py
+
+mcp-http:
+	@echo "=== Starting MCP server (HTTP transport) ==="
+	@echo "Access at http://localhost:8079"
+	@uv run python src/mcp_server.py --transport http --port 8079
+
+test-mcp:
+	@echo "=== Running MCP server integration tests ==="
+	@uv run python src/test_mcp_server.py

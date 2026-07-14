@@ -34,7 +34,7 @@ This list details the sequential tasks required to build the Project Sandbox. Ea
 - [x] Implement Dagster software-defined assets in `src/orchestration/` mapping generator -> dbt (Done)
 
 ## Phase 5: Lightdash Semantic MCP Server
-- [ ] Write custom Lightdash MCP server in `src/mcp_server.py` using `fastmcp` (Est: 3h)
-- [ ] Implement MCP tools for listing and querying semantic metrics from Lightdash/dbt (Est: 2h)
-- [ ] Implement MCP tool for generating/saving dark-themed performance charts (Est: 2.5h)
-- [ ] Run end-to-end integration test validating LLM-to-MCP query execution (Est: 2h)
+- [x] Write custom Lightdash MCP server in `src/mcp_server.py` using `fastmcp` (Done)
+- [x] Implement MCP tools for listing and querying semantic metrics from Lightdash/dbt (Done)
+- [x] Implement MCP tool for generating/saving dark-themed performance charts (Done)
+- [x] Run end-to-end integration test validating LLM-to-MCP query execution (Done)

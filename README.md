@@ -74,6 +74,68 @@ graph TD
 
 ---
 
+### MCP Server (AI Semantic Layer)
+
+The custom MCP server (`src/mcp_server.py`) exposes the dbt semantic layer to LLMs via the Model Context Protocol. It uses `fastmcp` and operates in two modes:
+
+- **Primary (DuckDB direct):** Reads `semantic_manifest.json` and queries `dev.duckdb` directly. Always works without infrastructure.
+- **Optional (Lightdash API):** When `LIGHTDASH_URL` and `LIGHTDASH_TOKEN` are set, additional tools interact with the Lightdash REST API.
+
+#### Usage
+
+```bash
+make mcp          # stdio transport (for LLM integration)
+make mcp-http     # HTTP transport at http://localhost:8079
+make test-mcp     # run integration tests
+```
+
+#### Available MCP Tools
+
+| Tool | Source | Description |
+| :--- | :--- | :--- |
+| `list_metrics` | Manifest | List all 8 dbt semantic metrics |
+| `list_semantic_models` | Manifest | List all 4 semantic models with entities, dimensions, measures |
+| `get_metric_details` | Manifest | Deep dive on one metric (measure, agg, dimensions) |
+| `list_available_dimensions` | Manifest | Dimensions/entities valid for grouping a metric |
+| `query_metric` | DuckDB | Execute a bounded metric query (group_by, date range, limit) |
+| `generate_chart` | DuckDB + matplotlib | Generate dark-themed PNG chart, save to disk |
+| `lightdash_status` | Lightdash API | Check if Lightdash is reachable (optional) |
+| `lightdash_list_charts` | Lightdash API | List saved charts in Lightdash (optional) |
+| `lightdash_get_catalog` | Lightdash API | Get data catalog from Lightdash (optional) |
+
+#### LLM Client Configuration
+
+For **Claude Code** or **opencode**, add to `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "project-sandbox": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "python", "src/mcp_server.py"],
+      "cwd": "/path/to/de-for-fun"
+    }
+  }
+}
+```
+
+#### Optional Lightdash Configuration
+
+```bash
+export LIGHTDASH_URL="http://localhost:8080"
+export LIGHTDASH_TOKEN="ldt_your_personal_access_token"
+export LIGHTDASH_PROJECT_UUID="your-project-uuid"
+```
+
+#### Community Alternatives
+
+- [`lightdash-mcp`](https://pypi.org/project/lightdash-mcp/) — Python MCP server (PyPI) by poddubnyoleg, 30+ tools for full CRUD
+- [`lightdash-mcp-server`](https://www.npmjs.com/package/lightdash-mcp-server) — TypeScript MCP server (npm) by syucream, 10 read-only tools
+- Lightdash built-in `/api/v1/mcp` — Enterprise feature, requires `MCP_ENABLED=true` + license key
+
+---
+
 ## 🚀 Quick Start
 
 ### 1. Prerequisites

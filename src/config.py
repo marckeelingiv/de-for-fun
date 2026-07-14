@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 
@@ -142,6 +143,50 @@ class GeneratorConfig:
             default_rows=int(os.environ.get("GENERATOR_DEFAULT_ROWS", "100000")),
             full_scale_rows=int(os.environ.get("GENERATOR_FULL_SCALE_ROWS", "50000000")),
             batch_size=int(os.environ.get("GENERATOR_BATCH_SIZE", "5000")),
+        )
+
+
+@dataclass(frozen=True)
+class LightdashConfig:
+    url: str
+    token: str
+    project_uuid: str
+
+    @classmethod
+    def from_env(cls) -> "LightdashConfig":
+        return cls(
+            url=os.environ.get("LIGHTDASH_URL", ""),
+            token=os.environ.get("LIGHTDASH_TOKEN", ""),
+            project_uuid=os.environ.get("LIGHTDASH_PROJECT_UUID", ""),
+        )
+
+    @property
+    def is_configured(self) -> bool:
+        return bool(self.url and self.token)
+
+
+@dataclass(frozen=True)
+class MCPConfig:
+    duckdb_path: str
+    manifest_path: str
+    chart_output_dir: str
+
+    @classmethod
+    def from_env(cls) -> "MCPConfig":
+        project_root = Path(__file__).resolve().parent.parent
+        return cls(
+            duckdb_path=os.environ.get(
+                "DUCKDB_PATH",
+                str(project_root / "dbt_project" / "target" / "dev.duckdb"),
+            ),
+            manifest_path=os.environ.get(
+                "SEMANTIC_MANIFEST_PATH",
+                str(project_root / "dbt_project" / "target" / "semantic_manifest.json"),
+            ),
+            chart_output_dir=os.environ.get(
+                "CHART_OUTPUT_DIR",
+                str(project_root / "dbt_project" / "target" / "charts"),
+            ),
         )
 
 

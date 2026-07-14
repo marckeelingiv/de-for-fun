@@ -4,20 +4,17 @@ Issues identified during development that are out of scope of the current phase 
 
 ## Infrastructure
 
-### 1. Hardcoded hostPath in Dagster manifest
-**File:** `k3s/dagster.yaml:68`  
-**Issue:** The Dagster deployment uses `hostPath: /workspace/de-for-fun` which only works if the repo is cloned at that exact path. Not portable to other developer machines.  
-**Suggested fix:** Use a configurable volume mount or a shared PVC instead of hostPath.
+### 1. ~~Hardcoded hostPath in Dagster manifest~~ (Resolved)
+**File:** `k3s/dagster.yaml`  
+**Resolution:** Added clarifying comment documenting that `scripts/create_cluster.sh` dynamically maps `${REPO_ROOT}` to `/workspace/de-for-fun` inside the k3d container, making the hostPath portable regardless of where the repo is cloned on the host. Added an initContainer for permission normalization.
 
-### 2. MinIO uses `:latest` tag
-**File:** `k3s/minio.yaml:33`  
-**Issue:** The MinIO deployment uses `minio/minio:latest` which is not reproducible. Different pulls may get different versions.  
-**Suggested fix:** Pin to a specific version tag (e.g., `minio/minio:RELEASE.2025-01-01T00-00-00Z`).
+### 2. ~~MinIO uses `:latest` tag~~ (Resolved)
+**File:** `k3s/minio.yaml`  
+**Resolution:** Pinned MinIO image to `minio/minio:RELEASE.2024-07-16T23-46-30Z` for reproducible deployments.
 
-### 3. No health checks in k3s manifests
-**Files:** `k3s/minio.yaml`, `k3s/redpanda.yaml`, `k3s/dagster.yaml`, `k3s/lightdash.yaml`  
-**Issue:** None of the deployments define liveness or readiness probes. Kubernetes cannot detect if a service is unhealthy or route traffic only to ready instances.  
-**Suggested fix:** Add `livenessProbe` and `readinessProbe` to each deployment's container spec.
+### 3. ~~No health checks in k3s manifests~~ (Resolved)
+**Files:** `k3s/minio.yaml`, `k3s/redpanda.yaml`, `k3s/dagster.yaml`, `k3s/lightdash.yaml`, `k3s/postgres.yaml`  
+**Resolution:** Added `livenessProbe` and `readinessProbe` to all deployment containers: MinIO (HTTP health endpoints), Redpanda (TCP socket), Redpanda Console (HTTP), Dagster (HTTP), Lightdash (HTTP health API), and Postgres (`pg_isready`).
 
 ## Orchestration
 
@@ -25,10 +22,9 @@ Issues identified during development that are out of scope of the current phase 
 **File:** `src/orchestration/definitions.py`  
 **Resolution:** Phase 4 implemented full Dagster asset definitions with 20 assets (generator -> buffer_writer -> verify -> 12 dbt models + time spine + 4 sources) using `dagster-dbt` for dbt model discovery.
 
-### 5. No automated Redpanda topic creation in deploy script
+### 5. ~~No automated Redpanda topic creation in deploy script~~ (Resolved)
 **File:** `scripts/deploy.sh`  
-**Issue:** Redpanda topics are not created during `make deploy` in the original Phase 1 script. Phase 2 adds topic creation to deploy.sh, but it relies on `rpk` being available inside the Redpanda container and uses `|| true` to ignore failures. A more robust approach would verify topic creation succeeded.  
-**Suggested fix:** Add explicit topic verification with retry logic.
+**Resolution:** Replaced `|| true` fallback with `create_topic_with_retry()` function (3 retries, 2s backoff) that checks if a topic already exists before failing. Added a verification loop that confirms all 4 topics exist after creation.
 
 ## Data & Schema
 
@@ -59,16 +55,13 @@ Issues identified during development that are out of scope of the current phase 
 **Impact:** Non-fatal — the webserver serves correctly and all 20 assets load. The conflicts resolve once old heartbeats expire (~60 seconds).  
 **Suggested fix:** Add an init container that clears the `dagster_home/heartbeat` directory on pod startup, or configure a shorter heartbeat TTL in `dagster.yaml`.
 
-### 11. `data/` directory owned by root causes DuckDB persistence failure
-**Files:** `src/mount_duckdb.py`, `src/query_duckdb.py`, `src/verify_data.py`  
-**Issue:** The default DuckDB path `data/compute.duckdb` fails with a permission error when the `data/` directory is owned by root (which happens when k3s PVCs mount to that path). The Phase 3 scripts (`mount_duckdb.py`, `query_duckdb.py`, `verify_data.py`) work around this with the `--in-memory` flag, but this means the DuckDB state is not persisted between script invocations.  
-**Suggested fix:** Fix directory permissions in the k3s manifest, or configure the DuckDB path to use a user-writable location (e.g., `/tmp/compute.duckdb`).
+### 11. ~~`data/` directory owned by root causes DuckDB persistence failure~~ (Resolved)
+**Files:** `src/mount_duckdb.py`, `src/query_duckdb.py`, `src/verify_data.py`, `Makefile`  
+**Resolution:** Changed default DuckDB path in all three scripts from `data/compute.duckdb` to read the `DUCKDB_PATH` env var with an absolute default of `dbt_project/target/dev.duckdb` (computed from `__file__`). Updated Makefile `mount`, `query`, and `verify` targets to set `DUCKDB_PATH=$(CURDIR)/dbt_project/target/dev.duckdb`, consistent with dbt targets. The `data/` directory is no longer used for DuckDB storage.
 
-### 12. dbt `DUCKDB_PATH` must be absolute when running from repo root
+### 12. ~~dbt `DUCKDB_PATH` must be absolute when running from repo root~~ (Resolved)
 **File:** `dbt_project/profiles.yml`  
-**Issue:** The dbt profile uses `{{ env_var('DUCKDB_PATH', 'dbt_project/target/dev.duckdb') }}` which is a relative path. When running `dbt run --project-dir dbt_project` from the repo root, DuckDB tries to open the file relative to the project dir, resulting in `dbt_project/dbt_project/target/dev.duckdb` (doubled path) which doesn't exist.  
-**Workaround:** Set `DUCKDB_PATH` to an absolute path: `DUCKDB_PATH=/home/marc/dev/de-for-fun/dbt_project/target/dev.duckdb uv run dbt run --project-dir dbt_project --profiles-dir dbt_project`.  
-**Suggested fix:** Change the default in `profiles.yml` to use an absolute path or `~/.duckdb/dev.duckdb`, or update the Makefile dbt targets to always set `DUCKDB_PATH` to an absolute path.
+**Resolution:** Changed the default path from `dbt_project/target/dev.duckdb` to `target/dev.duckdb` (relative to `--project-dir`, not CWD). When running `dbt run --project-dir dbt_project --profiles-dir dbt_project` from the repo root, the path now correctly resolves to `dbt_project/target/dev.duckdb`. The Makefile continues to set an absolute `DUCKDB_PATH` for all dbt targets.
 
 ## Semantic Layer & MCP Server
 
@@ -94,11 +87,9 @@ Issues identified during development that are out of scope of the current phase 
 **Issue:** The `dbt-metricflow` package is not in dependencies (existing issue #8). The MCP server queries DuckDB directly instead of using `dbt sl query`, so this is not blocking for Phase 5. However, if future work wants to use MetricFlow's query resolution engine (e.g., for complex multi-model joins), the dependency is still needed.  
 **Suggested fix:** Add `dbt-metricflow>=0.1.0` to `pyproject.toml` when MetricFlow integration is required.
 
-### 17. Chart output directory defaults to `dbt_project/target/charts/`
-**File:** `src/config.py`  
-**Issue:** The default `CHART_OUTPUT_DIR` is `dbt_project/target/charts/` rather than `data/charts/` because the `data/` directory is owned by root (existing issue #11). Charts generated by the MCP server are written to the dbt target directory, which is cleared on `dbt run`.  
-**Workaround:** Set `CHART_OUTPUT_DIR` env var to a persistent location (e.g., `export CHART_OUTPUT_DIR=/tmp/charts`).  
-**Suggested fix:** Fix the `data/` directory permissions (issue #11) and revert the default to `data/charts/`.
+### 17. ~~Chart output directory defaults to `dbt_project/target/charts/`~~ (Resolved)
+**File:** `src/config.py`, `.gitignore`  
+**Resolution:** Changed the default `CHART_OUTPUT_DIR` from `dbt_project/target/charts` to a top-level `charts/` directory at the project root. This is always writable and not cleared by `dbt run`. Added `charts/` to `.gitignore`.
 
 ### 18. Community `lightdash-mcp` package uses raw MCP SDK, not fastmcp
 **Files:** `pyproject.toml`, `src/mcp_server.py`  

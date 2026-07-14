@@ -37,8 +37,41 @@ echo "=== Bootstrapping MinIO Storage ==="
 kubectl exec deployment/dagster -- sh -c 'cd /app && env MINIO_ENDPOINT=http://minio:9000 uv run python src/bootstrap_storage.py'
 
 echo "=== Creating Redpanda Topics ==="
+create_topic_with_retry() {
+  local topic="$1"
+  local max_retries=3
+  local retry=0
+  while [ $retry -lt $max_retries ]; do
+    if kubectl exec deployment/redpanda -- rpk topic create "$topic" 2>/dev/null; then
+      echo "  Created topic: $topic"
+      return 0
+    fi
+    retry=$((retry + 1))
+    if [ $retry -lt $max_retries ]; then
+      echo "  Retry $retry/$max_retries for topic: $topic..."
+      sleep 2
+    fi
+  done
+  # Topic might already exist — verify it
+  if kubectl exec deployment/redpanda -- rpk topic describe "$topic" >/dev/null 2>&1; then
+    echo "  Topic already exists: $topic"
+    return 0
+  fi
+  echo "  FAILED: Could not create topic: $topic"
+  return 1
+}
+
 for topic in seg.fan-pings seg.pos-transactions podium.interaction-events podium.ai-telemetry; do
-  kubectl exec deployment/redpanda -- rpk topic create "$topic" || true
+  create_topic_with_retry "$topic"
+done
+
+echo "=== Verifying Redpanda Topics ==="
+for topic in seg.fan-pings seg.pos-transactions podium.interaction-events podium.ai-telemetry; do
+  if kubectl exec deployment/redpanda -- rpk topic describe "$topic" >/dev/null 2>&1; then
+    echo "  OK: $topic"
+  else
+    echo "  MISSING: $topic"
+  fi
 done
 
 echo "=== All Services Deployed and Ready! ==="

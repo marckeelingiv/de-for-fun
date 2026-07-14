@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
         - name: minio
-          image: minio/minio:latest
+          image: minio/minio:RELEASE.2024-07-16T23-46-41Z
           imagePullPolicy: IfNotPresent
           args:
             - server
@@ -47,6 +47,18 @@ spec:
               name: minio-api
             - containerPort: 9001
               name: minio-console
+          livenessProbe:
+            httpGet:
+              path: /minio/health/live
+              port: 9000
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: 9000
+            initialDelaySeconds: 5
+            periodSeconds: 10
           resources:
             limits:
               cpu: "1"

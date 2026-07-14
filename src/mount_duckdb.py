@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -18,7 +19,10 @@ from src.config import (
 
 def get_connection(db_path: str | None = None) -> duckdb.DuckDBPyConnection:
     if db_path is None:
-        db_path = "data/compute.duckdb"
+        db_path = os.environ.get(
+            "DUCKDB_PATH",
+            str(Path(__file__).resolve().parent.parent / "dbt_project" / "target" / "dev.duckdb"),
+        )
     if db_path != ":memory:":
         parent = Path(db_path).resolve().parent
         parent.mkdir(parents=True, exist_ok=True)
@@ -52,15 +56,20 @@ def mount_views(con: duckdb.DuckDBPyConnection) -> dict[str, str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Mount DuckDB views over MinIO Parquet files")
-    parser.add_argument("--db-path", default=None, help="Path to DuckDB file (default: data/compute.duckdb)")
+    parser.add_argument("--db-path", default=None, help="Path to DuckDB file (default: $DUCKDB_PATH or <repo>/dbt_project/target/dev.duckdb)")
     parser.add_argument("--in-memory", action="store_true", help="Use an in-memory DuckDB database")
     args = parser.parse_args()
 
     db_path = ":memory:" if args.in_memory else args.db_path
+    if db_path is None:
+        db_path = os.environ.get(
+            "DUCKDB_PATH",
+            str(Path(__file__).resolve().parent.parent / "dbt_project" / "target" / "dev.duckdb"),
+        )
 
     print("[mount_duckdb] Opening DuckDB connection...")
     con = get_connection(db_path)
-    print(f"[mount_duckdb] DB path: {db_path or 'data/compute.duckdb'}")
+    print(f"[mount_duckdb] DB path: {db_path}")
 
     print("[mount_duckdb] Mounting views over MinIO Parquet files...")
     views = mount_views(con)

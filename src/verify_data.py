@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -180,15 +181,20 @@ def verify_data(con: duckdb.DuckDBPyConnection) -> bool:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Verify data integrity in MinIO Parquet files")
-    parser.add_argument("--db-path", default=None, help="Path to DuckDB file (default: data/compute.duckdb)")
+    parser.add_argument("--db-path", default=None, help="Path to DuckDB file (default: $DUCKDB_PATH or <repo>/dbt_project/target/dev.duckdb)")
     parser.add_argument("--in-memory", action="store_true", help="Use an in-memory DuckDB database")
     args = parser.parse_args()
 
     db_path = ":memory:" if args.in_memory else args.db_path
+    if db_path is None:
+        db_path = os.environ.get(
+            "DUCKDB_PATH",
+            str(Path(__file__).resolve().parent.parent / "dbt_project" / "target" / "dev.duckdb"),
+        )
 
     print("[verify] Opening DuckDB connection...")
     con = get_connection(db_path)
-    print(f"[verify] DB path: {db_path or 'data/compute.duckdb'}")
+    print(f"[verify] DB path: {db_path}")
 
     passed = verify_data(con)
 

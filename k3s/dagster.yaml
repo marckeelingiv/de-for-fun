@@ -15,6 +15,14 @@ spec:
       labels:
         app: dagster
     spec:
+      initContainers:
+        - name: fix-app-permissions
+          image: rancher/mirrored-library-busybox:1.36.1
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "chmod -R 755 /app 2>/dev/null || true"]
+          volumeMounts:
+            - mountPath: /app
+              name: app-volume
       containers:
         - name: dagster
           image: ghcr.io/astral-sh/uv:python3.13-bookworm-slim
@@ -52,6 +60,19 @@ spec:
           ports:
             - containerPort: 3000
               name: dagster-ui
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
           resources:
             limits:
               cpu: "1"
@@ -66,6 +87,9 @@ spec:
               name: duckdb-volume
       volumes:
         - name: app-volume
+          # hostPath is mapped by scripts/create_cluster.sh which bind-mounts
+          # the repo root to /workspace/de-for-fun inside the k3d server container.
+          # This makes the manifest portable — the repo can live anywhere on the host.
           hostPath:
             path: /workspace/de-for-fun
             type: Directory

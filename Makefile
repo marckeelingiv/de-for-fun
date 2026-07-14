@@ -70,15 +70,15 @@ buffer:
 
 mount:
 	@echo "=== Mounting DuckDB views over MinIO Parquet files ==="
-	@uv run python src/mount_duckdb.py
+	@DUCKDB_PATH=$(CURDIR)/dbt_project/target/dev.duckdb uv run python src/mount_duckdb.py
 
 query:
 	@echo "=== Running analytical queries on Parquet views ==="
-	@uv run python src/query_duckdb.py
+	@DUCKDB_PATH=$(CURDIR)/dbt_project/target/dev.duckdb uv run python src/query_duckdb.py
 
 verify:
 	@echo "=== Verifying Parquet data integrity ==="
-	@uv run python src/verify_data.py
+	@DUCKDB_PATH=$(CURDIR)/dbt_project/target/dev.duckdb uv run python src/verify_data.py
 
 dbt-debug:
 	@echo "=== Checking dbt connection ==="

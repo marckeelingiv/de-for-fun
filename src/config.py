@@ -185,7 +185,7 @@ class MCPConfig:
             ),
             chart_output_dir=os.environ.get(
                 "CHART_OUTPUT_DIR",
-                str(project_root / "dbt_project" / "target" / "charts"),
+                str(project_root / "charts"),
             ),
         )
 

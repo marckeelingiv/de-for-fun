@@ -1,0 +1,245 @@
+/*
+  Central deck theme controls.
+  Change these tokens to reskin the whole slideshow, including command boxes,
+  cards, layout chrome, and Mermaid diagrams rendered by MermaidDiagram.vue.
+*/
+:root {
+  --deck-bg: #070a12;
+  --deck-bg-radial: radial-gradient(circle at 18% 18%, rgba(0, 212, 255, 0.18), transparent 26%), radial-gradient(circle at 84% 12%, rgba(168, 85, 247, 0.16), transparent 28%), #070a12;
+  --deck-fg: #e8f0ff;
+  --deck-muted: #9fb1cc;
+
+  --primary: #00d4ff;
+  --secondary: #a855f7;
+  --accent: #1dd1a1;
+  --warning: #feca57;
+  --danger: #ff6b6b;
+
+  --surface: #101827;
+  --surface-raised: #162235;
+  --surface-muted: #0c1320;
+  --surface-glass: rgba(16, 24, 39, 0.76);
+
+  --border: #263449;
+  --border-strong: #00d4ff;
+  --border-secondary: #a855f7;
+
+  --code-bg: #050814;
+  --code-fg: #d9e8ff;
+  --code-prompt: #1dd1a1;
+
+  --diagram-edge: #7dd3fc;
+  --diagram-node-bg: #111827;
+  --diagram-node-alt-bg: #182235;
+  --diagram-node-border: #00d4ff;
+  --diagram-text: #e8f0ff;
+  --diagram-cluster-bg: rgba(168, 85, 247, 0.12);
+
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 24px;
+  --radius-xl: 34px;
+
+  --shadow-soft: 0 22px 70px rgba(0, 0, 0, 0.34);
+  --shadow-glow: 0 0 34px rgba(0, 212, 255, 0.22);
+  --shadow-secondary-glow: 0 0 38px rgba(168, 85, 247, 0.2);
+
+  --font-display: Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.slidev-layout {
+  background: var(--deck-bg-radial);
+  color: var(--deck-fg);
+  font-family: var(--font-display);
+  overflow: hidden;
+}
+
+.slidev-layout::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.78), transparent 76%);
+}
+
+.slidev-layout > * {
+  position: relative;
+}
+
+h1, h2, h3 {
+  color: var(--deck-fg);
+  letter-spacing: -0.04em;
+}
+
+h1 {
+  font-size: 4.7rem;
+  line-height: 0.94;
+  font-weight: 900;
+}
+
+h2 {
+  font-size: 2.7rem;
+  line-height: 1.02;
+  font-weight: 850;
+}
+
+h3 {
+  color: var(--primary);
+  font-weight: 780;
+}
+
+p, li {
+  color: var(--deck-muted);
+  font-size: 1.18rem;
+}
+
+strong {
+  color: var(--deck-fg);
+}
+
+code {
+  font-family: var(--font-mono);
+}
+
+.kicker {
+  color: var(--primary);
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.9rem;
+}
+
+.hero-title {
+  max-width: 900px;
+  text-wrap: balance;
+}
+
+.hero-title .gradient {
+  background: linear-gradient(92deg, var(--primary), var(--accent), var(--secondary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.hero-subtitle {
+  max-width: 760px;
+  margin-top: 1.4rem;
+  font-size: 1.35rem;
+  line-height: 1.5;
+}
+
+.deck-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.deck-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.glass-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-glass);
+  box-shadow: var(--shadow-soft);
+  padding: 1.1rem;
+  backdrop-filter: blur(16px);
+}
+
+.glass-card.primary {
+  border-color: color-mix(in srgb, var(--primary), transparent 36%);
+  box-shadow: var(--shadow-glow);
+}
+
+.glass-card.secondary {
+  border-color: color-mix(in srgb, var(--secondary), transparent 36%);
+  box-shadow: var(--shadow-secondary-glow);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.stat {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  padding: 0.9rem;
+}
+
+.stat .value {
+  color: var(--primary);
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.stat .label {
+  color: var(--deck-muted);
+  font-size: 0.86rem;
+}
+
+.demo-marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--accent), transparent 36%);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  color: var(--accent);
+  background: rgba(29, 209, 161, 0.1);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.warning-note {
+  border-left: 4px solid var(--warning);
+  background: rgba(254, 202, 87, 0.1);
+  color: var(--deck-fg);
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-sm);
+}
+
+.slidev-code {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--code-bg) !important;
+}
+
+.mermaid {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface-glass);
+  box-shadow: var(--shadow-soft);
+  padding: 1rem;
+}
+
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Keeps Slidev's TOC/goto overlay from getting pinned open during demos. */
+.slidev-toc,
+.autocomplete,
+.autocomplete-list {
+  display: none !important;
+}
+
+a {
+  color: var(--primary);
+}
+
+::selection {
+  background: var(--primary);
+  color: var(--deck-bg);
+}

@@ -25,3 +25,9 @@ src/orchestration/schedules/
 
 # Generated charts
 charts/
+
+# Slidev-generated files
+slides/node_modules/
+slides/dist/
+slides/.slidev/
+slides/*.pdf

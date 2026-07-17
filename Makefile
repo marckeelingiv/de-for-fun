@@ -1,6 +1,6 @@
 ROWS ?= 100000
 
-.PHONY: help setup up down deploy status dashboard generate generate-full buffer stream stream-stop generate-continuous buffer-continuous mount query verify dbt-debug dbt-parse dbt-compile dbt-run dbt-test orchestrate mcp mcp-http test-mcp
+.PHONY: help setup up down deploy status dashboard generate generate-full buffer stream stream-stop generate-continuous buffer-continuous mount query verify dbt-debug dbt-parse dbt-compile dbt-run dbt-test orchestrate mcp mcp-http test-mcp slides slides-build slides-export
 
 help:
 	@echo "Available commands:"
@@ -29,6 +29,9 @@ help:
 	@echo "  make mcp          - Start MCP server (stdio, for LLM integration)"
 	@echo "  make mcp-http     - Start MCP server (HTTP, port 8079)"
 	@echo "  make test-mcp     - Run MCP server integration tests"
+	@echo "  make slides       - Start the meetup slideshow deck"
+	@echo "  make slides-build - Build the slideshow as static HTML"
+	@echo "  make slides-export - Export the slideshow to PDF"
 
 setup:
 	@./scripts/install_k3d.sh
@@ -152,3 +155,15 @@ mcp-http:
 test-mcp:
 	@echo "=== Running MCP server integration tests ==="
 	@uv run python src/test_mcp_server.py
+
+slides:
+	@echo "=== Starting Slidev meetup deck ==="
+	@npm --prefix slides run dev
+
+slides-build:
+	@echo "=== Building Slidev meetup deck ==="
+	@npm --prefix slides run build
+
+slides-export:
+	@echo "=== Exporting Slidev meetup deck ==="
+	@npm --prefix slides run export

@@ -1,0 +1,120 @@
+config:
+  dateZoomGranularities:
+    - Day
+    - Week
+    - Month
+    - Quarter
+    - Year
+  defaultDateZoomGranularity: Day
+  isAddFilterDisabled: false
+  isDateZoomDisabled: false
+contentType: dashboard
+description: "SEG arena revenue performance and fan congestion analysis across zones, items, and time"
+filters:
+  dimensions:
+    - label: Date Range
+      operator: inThePast
+      settings:
+        completed: false
+        unitOfTime: days
+      target:
+        fieldId: dynamic_pricing_date_day
+        tableName: dynamic_pricing
+      tileTargets:
+        seg-avg-dwell-by-zone:
+          fieldId: arena_bottlenecks_date_day
+          tableName: arena_bottlenecks
+        seg-bottleneck-ratio-by-zone:
+          fieldId: arena_bottlenecks_date_day
+          tableName: arena_bottlenecks
+        seg-congestion-breakdown:
+          fieldId: arena_bottlenecks_date_day
+          tableName: arena_bottlenecks
+      values:
+        - 30
+name: SEG Arena Revenue & Congestion
+slug: seg-arena-dashboard
+spaceSlug: arena
+tabs: []
+tiles:
+  - h: 3
+    properties:
+      chartName: Total Revenue
+      chartSlug: seg-total-revenue-kpi
+      hideTitle: false
+      title: Total Revenue
+    type: saved_chart
+    w: 12
+    x: 0
+    y: 0
+  - h: 3
+    properties:
+      chartName: Transaction Count
+      chartSlug: seg-transaction-count-kpi
+      hideTitle: false
+      title: Transaction Count
+    type: saved_chart
+    w: 12
+    x: 12
+    y: 0
+  - h: 3
+    properties:
+      chartName: Sales Velocity
+      chartSlug: seg-sales-velocity-kpi
+      hideTitle: false
+      title: Sales Velocity
+    type: saved_chart
+    w: 12
+    x: 24
+    y: 0
+  - h: 8
+    properties:
+      chartName: Revenue by Day
+      chartSlug: seg-revenue-by-day
+      hideTitle: false
+      title: Revenue by Day
+    type: saved_chart
+    w: 36
+    x: 0
+    y: 3
+  - h: 8
+    properties:
+      chartName: Revenue by Item
+      chartSlug: seg-revenue-by-item
+      hideTitle: false
+      title: Revenue by Item
+    type: saved_chart
+    w: 18
+    x: 0
+    y: 11
+  - h: 8
+    properties:
+      chartName: Bottleneck Ratio by Zone
+      chartSlug: seg-bottleneck-ratio-by-zone
+      hideTitle: false
+      title: Bottleneck Ratio by Zone
+    type: saved_chart
+    w: 18
+    x: 18
+    y: 11
+  - h: 8
+    properties:
+      chartName: Avg Dwell Time by Zone
+      chartSlug: seg-avg-dwell-by-zone
+      hideTitle: false
+      title: Avg Dwell Time by Zone
+    type: saved_chart
+    w: 18
+    x: 0
+    y: 19
+  - h: 8
+    properties:
+      chartName: Congestion Level Breakdown
+      chartSlug: seg-congestion-breakdown
+      hideTitle: false
+      title: Congestion Level Breakdown
+    type: saved_chart
+    w: 18
+    x: 18
+    y: 19
+version: 1

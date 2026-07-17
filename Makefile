@@ -1,6 +1,7 @@
 ROWS ?= 100000
+PREVIEW_NAME ?= sandbox-preview
 
-.PHONY: help setup up down deploy status dashboard generate generate-full buffer stream stream-stop generate-continuous buffer-continuous mount query verify dbt-debug dbt-parse dbt-compile dbt-run dbt-test orchestrate mcp mcp-http test-mcp slides slides-build slides-export
+.PHONY: help setup up down deploy status dashboard generate generate-full buffer stream stream-stop generate-continuous buffer-continuous mount query verify dbt-debug dbt-parse dbt-compile dbt-run dbt-test lightdash-lint lightdash-deploy lightdash-upload lightdash-download lightdash-preview lightdash-stop-preview lightdash-config orchestrate mcp mcp-http test-mcp slides slides-build slides-export
 
 help:
 	@echo "Available commands:"
@@ -25,7 +26,14 @@ help:
 	@echo "  make dbt-compile   - Compile dbt models to SQL"
 	@echo "  make dbt-run       - Run dbt models (build tables/views in DuckDB)"
 	@echo "  make dbt-test      - Run dbt data tests"
-	@echo "  make orchestrate   - Start Dagster UI for orchestration"
+	@echo "  make lightdash-lint    - Validate Lightdash chart/dashboard YAML locally"
+	@echo "  make lightdash-deploy  - Deploy dbt semantic layer (metrics, dimensions) to Lightdash"
+	@echo "  make lightdash-upload  - Upload charts and dashboards from lightdash/ to Lightdash"
+	@echo "  make lightdash-download - Download charts and dashboards from Lightdash as YAML"
+	@echo "  make lightdash-preview  - Create a preview project for testing changes"
+	@echo "  make lightdash-stop-preview - Stop and clean up preview project"
+	@echo "  make lightdash-config  - Show current Lightdash project"
+	@echo "  make orchestrate   - Open access to the k3d Dagster UI"
 	@echo "  make mcp          - Start MCP server (stdio, for LLM integration)"
 	@echo "  make mcp-http     - Start MCP server (HTTP, port 8079)"
 	@echo "  make test-mcp     - Run MCP server integration tests"
@@ -139,9 +147,40 @@ dbt-test:
 	@echo "=== Running dbt tests ==="
 	@DUCKDB_PATH=$(CURDIR)/dbt_project/target/dev.duckdb uv run dbt test --project-dir dbt_project --profiles-dir dbt_project
 
+lightdash-lint:
+	@echo "=== Linting Lightdash YAML files ==="
+	@lightdash lint --path lightdash
+
+lightdash-deploy:
+	@echo "=== Deploying dbt semantic layer to Lightdash ==="
+	@DUCKDB_PATH=$(CURDIR)/dbt_project/target/dev.duckdb lightdash deploy --project-dir dbt_project --profiles-dir dbt_project
+
+lightdash-upload:
+	@echo "=== Uploading charts and dashboards to Lightdash ==="
+	@lightdash upload --charts-dir lightdash/charts --dashboards-dir lightdash/dashboards
+
+lightdash-download:
+	@echo "=== Downloading charts and dashboards from Lightdash ==="
+	@lightdash download --charts-dir lightdash/charts --dashboards-dir lightdash/dashboards --nested
+
+lightdash-preview:
+	@echo "=== Creating Lightdash preview project ($(PREVIEW_NAME)) ==="
+	@DUCKDB_PATH=$(CURDIR)/dbt_project/target/dev.duckdb lightdash preview --name $(PREVIEW_NAME) --project-dir dbt_project --profiles-dir dbt_project
+
+lightdash-stop-preview:
+	@echo "=== Stopping Lightdash preview project ($(PREVIEW_NAME)) ==="
+	@lightdash stop-preview --name $(PREVIEW_NAME)
+
+lightdash-config:
+	@echo "=== Current Lightdash project ==="
+	@lightdash config get-project
+
 orchestrate:
-	@echo "=== Starting Dagster UI ==="
-	@uv run dagster dev -h 0.0.0.0 -p 3000 -f src/orchestration/definitions.py
+	@echo "=== Accessing k3d Dagster UI ==="
+	@kubectl config use-context k3d-sandbox 2>/dev/null || true
+	@kubectl rollout status deployment/dagster --timeout=600s
+	@echo "Access Dagster at http://localhost:3000"
+	@kubectl port-forward svc/dagster 3000:3000
 
 mcp:
 	@echo "=== Starting MCP server (stdio transport for LLM integration) ==="

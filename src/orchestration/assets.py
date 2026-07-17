@@ -3,7 +3,16 @@ import sys
 from pathlib import Path
 from typing import Mapping, Optional, Any
 
-from dagster import AssetDep, AssetExecutionContext, AssetKey, Config, asset, ScheduleDefinition
+from dagster import (
+    AssetDep,
+    AssetExecutionContext,
+    AssetKey,
+    AssetSelection,
+    Config,
+    ScheduleDefinition,
+    asset,
+    define_asset_job,
+)
 from dagster_dbt import DagsterDbtTranslator, DbtCliResource, dbt_assets
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -58,8 +67,14 @@ def project_sandbox_dbt(
     yield from dbt.cli(["build"], context=context).stream()
 
 
+dbt_rebuild_job = define_asset_job(
+    name="dbt_rebuild_job",
+    selection=AssetSelection.all(),
+)
+
+
 dbt_rebuild_schedule = ScheduleDefinition(
     name="dbt_rebuild_schedule",
-    job_name="project_sandbox_dbt",
+    job=dbt_rebuild_job,
     cron_schedule="*/30 * * * *",
 )

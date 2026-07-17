@@ -1,0 +1,117 @@
+config:
+  dateZoomGranularities:
+    - Day
+    - Week
+    - Month
+    - Quarter
+    - Year
+  defaultDateZoomGranularity: Day
+  isAddFilterDisabled: false
+  isDateZoomDisabled: false
+contentType: dashboard
+description: "Podium AI service SLA performance and merchant sentiment health monitoring"
+filters:
+  dimensions:
+    - label: Date Range
+      operator: inThePast
+      settings:
+        completed: false
+        unitOfTime: days
+      target:
+        fieldId: ai_slas_date_day
+        tableName: ai_slas
+      tileTargets:
+        podium-interactions-by-day:
+          fieldId: merchant_sentiment_date_day
+          tableName: merchant_sentiment
+        podium-sentiment-ratio-by-merchant:
+          fieldId: merchant_sentiment_date_day
+          tableName: merchant_sentiment
+      values:
+        - 30
+name: Podium AI & Merchant Health
+slug: podium-ai-merchant-dashboard
+spaceSlug: podium
+tabs: []
+tiles:
+  - h: 3
+    properties:
+      chartName: AI SLA Compliance
+      chartSlug: podium-ai-sla-compliance-kpi
+      hideTitle: false
+      title: AI SLA Compliance
+    type: saved_chart
+    w: 12
+    x: 0
+    y: 0
+  - h: 3
+    properties:
+      chartName: AI Token Consumption
+      chartSlug: podium-ai-token-consumption-kpi
+      hideTitle: false
+      title: AI Token Consumption
+    type: saved_chart
+    w: 12
+    x: 12
+    y: 0
+  - h: 3
+    properties:
+      chartName: Merchant Sentiment Score
+      chartSlug: podium-merchant-sentiment-kpi
+      hideTitle: false
+      title: Merchant Sentiment Score
+    type: saved_chart
+    w: 12
+    x: 24
+    y: 0
+  - h: 8
+    properties:
+      chartName: SLA Compliance by Day
+      chartSlug: podium-sla-compliance-by-day
+      hideTitle: false
+      title: SLA Compliance by Day
+    type: saved_chart
+    w: 36
+    x: 0
+    y: 3
+  - h: 8
+    properties:
+      chartName: Latency Percentiles
+      chartSlug: podium-latency-percentiles
+      hideTitle: false
+      title: Latency Percentiles
+    type: saved_chart
+    w: 18
+    x: 0
+    y: 11
+  - h: 8
+    properties:
+      chartName: Token Consumption by Day
+      chartSlug: podium-token-consumption-by-day
+      hideTitle: false
+      title: Token Consumption by Day
+    type: saved_chart
+    w: 18
+    x: 18
+    y: 11
+  - h: 8
+    properties:
+      chartName: Merchant Interactions by Day
+      chartSlug: podium-interactions-by-day
+      hideTitle: false
+      title: Merchant Interactions by Day
+    type: saved_chart
+    w: 18
+    x: 0
+    y: 19
+  - h: 8
+    properties:
+      chartName: Sentiment Ratio by Merchant
+      chartSlug: podium-sentiment-ratio-by-merchant
+      hideTitle: false
+      title: Sentiment Ratio by Merchant
+    type: saved_chart
+    w: 18
+    x: 18
+    y: 19
+version: 1

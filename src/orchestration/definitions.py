@@ -1,6 +1,7 @@
 from dagster import Definitions
 
 from src.orchestration.assets import (
+    dbt_rebuild_job,
     dbt_rebuild_schedule,
     minio_data_verified,
     project_sandbox_dbt,
@@ -15,5 +16,6 @@ defs = Definitions(
     resources={
         "dbt": dbt_resource,
     },
+    jobs=[dbt_rebuild_job],
     schedules=[dbt_rebuild_schedule],
 )

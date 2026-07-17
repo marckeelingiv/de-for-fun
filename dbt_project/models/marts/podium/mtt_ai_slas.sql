@@ -1,6 +1,12 @@
+{{ config(
+    materialized='incremental',
+    unique_key=['tenant_id']
+) }}
+
 select
     tenant_id,
     min(timestamp)::date as date_day,
+    max(timestamp) as latest_timestamp,
     count(*) as telemetry_count,
     sum(prompt_tokens) as total_prompt_tokens,
     sum(completion_tokens) as total_completion_tokens,
@@ -15,4 +21,7 @@ select
     count(*) filter (where sla_status = 'met')::double
         / nullif(count(*), 0) as sla_compliance_rate
 from {{ ref('stg_ai_telemetry') }}
+{% if is_incremental() %}
+where timestamp >= (select coalesce(max(latest_timestamp), '1970-01-01'::timestamp) from {{ this }})
+{% endif %}
 group by tenant_id

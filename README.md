@@ -226,6 +226,47 @@ make down
 
 ---
 
+## 🔄 Continuous Streaming
+
+To see data flowing through the pipeline in real time:
+
+```bash
+# Prerequisites: Docker running, k3d cluster up, services deployed
+make setup        # one-time: install k3d + kubectl
+make up           # create k3d cluster
+make deploy       # deploy MinIO, Redpanda, Dagster, etc.
+
+# Start continuous data flow
+make stream       # deploy generator + buffer pods to k3d
+make orchestrate  # start Dagster UI (separate terminal, port 3000)
+
+# Watch data flow
+kubectl get pods  # see generator-seg, generator-podium, buffer-writer running
+kubectl logs -f deployment/generator-seg  # watch data being produced
+kubectl logs -f deployment/buffer-writer  # watch Parquet being written
+
+# Dagster auto-runs dbt every 30 minutes (incremental rebuild)
+# Visit http://localhost:3000 to see the schedule and asset materializations
+
+# Stop
+make stream-stop
+```
+
+### Local mode (without k3d)
+
+```bash
+# Terminal 1: continuous generator
+make generate-continuous
+
+# Terminal 2: continuous buffer writer
+make buffer-continuous
+
+# Terminal 3: periodic dbt rebuild
+make orchestrate  # Dagster UI at :3000, schedule runs dbt every 30min
+```
+
+---
+
 ## 📁 Repository Structure
 
 ```text

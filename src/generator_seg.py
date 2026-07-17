@@ -7,13 +7,14 @@ import asyncio
 import json
 import argparse
 import random
+import signal
 import uuid
 from datetime import datetime, timedelta
 
 import polars as pl
 from aiokafka import AIOKafkaProducer
 
-from src.config import RedpandaConfig, Topic, GeneratorConfig, SEG_TENANTS
+from src.config import RedpandaConfig, Topic, GeneratorConfig, SEG_TENANTS, ContinuousGeneratorConfig
 
 BEACON_COORDS: dict[str, tuple[float, float]] = {
     "entrance_north": (50.0, 95.0),
@@ -99,12 +100,31 @@ POS_TIME_WINDOWS: list[tuple[datetime, datetime, float]] = [
     (datetime(2025, 7, 12, 21, 30, 0), datetime(2025, 7, 12, 23, 0, 0), 0.10),
 ]
 
+EVENT_PHASES: list[tuple[float, float, float]] = [
+    (0.00, 0.15, 0.50),
+    (0.15, 0.50, 0.80),
+    (0.50, 0.60, 2.50),
+    (0.60, 0.85, 1.20),
+    (0.85, 1.00, 0.20),
+]
+
+
+def _event_phase_multiplier(now: datetime, cycle_hours: int) -> float:
+    epoch = datetime(2025, 1, 1, tzinfo=now.tzinfo) if now.tzinfo else datetime(2025, 1, 1)
+    cycle_seconds = cycle_hours * 3600
+    elapsed = (now - epoch).total_seconds() % cycle_seconds
+    frac = elapsed / cycle_seconds
+    for start, end, mult in EVENT_PHASES:
+        if start <= frac < end:
+            return mult
+    return 1.0
+
 
 def _generate_device_pool(size: int, rng: random.Random) -> list[str]:
     return [str(uuid.UUID(int=rng.getrandbits(128), version=4)) for _ in range(size)]
 
 
-def generate_fan_pings(num_rows: int, seed: int) -> pl.DataFrame:
+def generate_fan_pings(num_rows: int, seed: int, generated_at: datetime | None = None) -> pl.DataFrame:
     pool_rng = random.Random(seed)
     device_pool = _generate_device_pool(DEVICE_POOL_SIZE, pool_rng)
 
@@ -120,9 +140,14 @@ def generate_fan_pings(num_rows: int, seed: int) -> pl.DataFrame:
     y_coords: list[float] = []
     dwell_times: list[int] = []
 
+    now = datetime.now() if generated_at is not None else None
     for i in range(num_rows):
-        offset = rng.randint(0, EVENT_NIGHT_SECONDS)
-        timestamps.append(EVENT_NIGHT_BASE + timedelta(seconds=offset))
+        if generated_at is not None:
+            offset = rng.uniform(0, 2)
+            timestamps.append(now + timedelta(seconds=offset))
+        else:
+            offset = rng.randint(0, EVENT_NIGHT_SECONDS)
+            timestamps.append(EVENT_NIGHT_BASE + timedelta(seconds=offset))
 
         beacon = beacon_ids[i]
         bx, by = BEACON_COORDS[beacon]
@@ -134,29 +159,31 @@ def generate_fan_pings(num_rows: int, seed: int) -> pl.DataFrame:
         lo, hi = BEACON_DWELL_RANGES[beacon]
         dwell_times.append(rng.randint(lo, hi))
 
-    return pl.DataFrame(
-        {
-            "tenant_id": tenant_ids,
-            "timestamp": timestamps,
-            "device_id": device_ids,
-            "beacon_id": beacon_ids,
-            "x_coord": x_coords,
-            "y_coord": y_coords,
-            "estimated_dwell_time": dwell_times,
-        },
-        schema={
-            "tenant_id": pl.Utf8,
-            "timestamp": pl.Datetime,
-            "device_id": pl.Utf8,
-            "beacon_id": pl.Utf8,
-            "x_coord": pl.Float64,
-            "y_coord": pl.Float64,
-            "estimated_dwell_time": pl.Int32,
-        },
-    )
+    data = {
+        "tenant_id": tenant_ids,
+        "timestamp": timestamps,
+        "device_id": device_ids,
+        "beacon_id": beacon_ids,
+        "x_coord": x_coords,
+        "y_coord": y_coords,
+        "estimated_dwell_time": dwell_times,
+    }
+    schema = {
+        "tenant_id": pl.Utf8,
+        "timestamp": pl.Datetime,
+        "device_id": pl.Utf8,
+        "beacon_id": pl.Utf8,
+        "x_coord": pl.Float64,
+        "y_coord": pl.Float64,
+        "estimated_dwell_time": pl.Int32,
+    }
+    if generated_at is not None:
+        data["generated_at"] = [generated_at] * num_rows
+        schema["generated_at"] = pl.Datetime
+    return pl.DataFrame(data, schema=schema)
 
 
-def generate_pos_transactions(num_rows: int, seed: int) -> pl.DataFrame:
+def generate_pos_transactions(num_rows: int, seed: int, generated_at: datetime | None = None) -> pl.DataFrame:
     rng = random.Random(seed)
     vendors = list(VENDOR_ITEMS.keys())
     window_starts = [w[0] for w in POS_TIME_WINDOWS]
@@ -171,10 +198,15 @@ def generate_pos_transactions(num_rows: int, seed: int) -> pl.DataFrame:
     amounts: list[float] = []
     payment_methods: list[str] = []
 
+    now = datetime.now() if generated_at is not None else None
     for _ in range(num_rows):
-        window_idx = rng.choices(range(len(POS_TIME_WINDOWS)), weights=window_weights, k=1)[0]
-        offset = rng.randint(0, window_durations[window_idx])
-        timestamps.append(window_starts[window_idx] + timedelta(seconds=offset))
+        if generated_at is not None:
+            offset = rng.uniform(0, 2)
+            timestamps.append(now + timedelta(seconds=offset))
+        else:
+            window_idx = rng.choices(range(len(POS_TIME_WINDOWS)), weights=window_weights, k=1)[0]
+            offset = rng.randint(0, window_durations[window_idx])
+            timestamps.append(window_starts[window_idx] + timedelta(seconds=offset))
 
         transaction_ids.append(str(uuid.UUID(int=rng.getrandbits(128), version=4)))
 
@@ -189,26 +221,28 @@ def generate_pos_transactions(num_rows: int, seed: int) -> pl.DataFrame:
 
         payment_methods.append(rng.choices(PAYMENT_METHODS, weights=PAYMENT_WEIGHTS, k=1)[0])
 
-    return pl.DataFrame(
-        {
-            "tenant_id": tenant_ids,
-            "timestamp": timestamps,
-            "transaction_id": transaction_ids,
-            "vendor_id": vendor_ids,
-            "item_id": item_ids,
-            "amount": amounts,
-            "payment_method": payment_methods,
-        },
-        schema={
-            "tenant_id": pl.Utf8,
-            "timestamp": pl.Datetime,
-            "transaction_id": pl.Utf8,
-            "vendor_id": pl.Utf8,
-            "item_id": pl.Utf8,
-            "amount": pl.Float64,
-            "payment_method": pl.Utf8,
-        },
-    )
+    data = {
+        "tenant_id": tenant_ids,
+        "timestamp": timestamps,
+        "transaction_id": transaction_ids,
+        "vendor_id": vendor_ids,
+        "item_id": item_ids,
+        "amount": amounts,
+        "payment_method": payment_methods,
+    }
+    schema = {
+        "tenant_id": pl.Utf8,
+        "timestamp": pl.Datetime,
+        "transaction_id": pl.Utf8,
+        "vendor_id": pl.Utf8,
+        "item_id": pl.Utf8,
+        "amount": pl.Float64,
+        "payment_method": pl.Utf8,
+    }
+    if generated_at is not None:
+        data["generated_at"] = [generated_at] * num_rows
+        schema["generated_at"] = pl.Datetime
+    return pl.DataFrame(data, schema=schema)
 
 
 async def produce_to_kafka(producer: AIOKafkaProducer, topic: str, df: pl.DataFrame) -> int:
@@ -250,6 +284,63 @@ async def run(rows: int, batch_size: int, seed: int) -> None:
         await producer.stop()
 
     print(f"\n[generator_seg] Summary: fan_pings={fan_pings_total}, pos_transactions={pos_total}")
+
+
+async def _produce_with_retry(
+    producer: AIOKafkaProducer, topic: str, df: pl.DataFrame, config: ContinuousGeneratorConfig
+) -> int:
+    for attempt in range(config.kafka_retry_max_attempts):
+        try:
+            return await produce_to_kafka(producer, topic, df)
+        except Exception as e:
+            if attempt < config.kafka_retry_max_attempts - 1:
+                print(f"[generator_seg] Kafka error (attempt {attempt+1}/{config.kafka_retry_max_attempts}): {e}")
+                await asyncio.sleep(config.kafka_retry_backoff_sec * (attempt + 1))
+            else:
+                raise
+
+
+async def run_continuous(config: ContinuousGeneratorConfig, seed: int) -> None:
+    redpanda_config = RedpandaConfig.from_env()
+    producer = AIOKafkaProducer(bootstrap_servers=redpanda_config.brokers)
+    await producer.start()
+
+    cycle_number = 0
+    fan_pings_total = 0
+    pos_total = 0
+    running = True
+
+    def _signal_handler(signum, frame):
+        nonlocal running
+        running = False
+
+    signal.signal(signal.SIGINT, _signal_handler)
+    signal.signal(signal.SIGTERM, _signal_handler)
+
+    try:
+        while running:
+            generated_at = datetime.now()
+            phase_mult = _event_phase_multiplier(generated_at, config.seg_event_cycle_hours)
+            effective_rows = max(1, int(config.batch_size * phase_mult))
+            fan_rows = max(1, int(effective_rows * config.fan_pings_weight))
+            pos_rows = max(1, int(effective_rows * config.pos_transactions_weight))
+            cycle_seed = seed + cycle_number * 7919
+
+            fan_df = generate_fan_pings(fan_rows, cycle_seed, generated_at=generated_at)
+            fan_count = await _produce_with_retry(producer, Topic.FAN_PINGS.value, fan_df, config)
+            fan_pings_total += fan_count
+
+            pos_df = generate_pos_transactions(pos_rows, cycle_seed + 1, generated_at=generated_at)
+            pos_count = await _produce_with_retry(producer, Topic.POS_TRANSACTIONS.value, pos_df, config)
+            pos_total += pos_count
+
+            print(f"[generator_seg] Batch #{cycle_number}: fan_pings={fan_count} pos_transactions={pos_count} phase_mult={phase_mult:.2f}")
+
+            cycle_number += 1
+            await asyncio.sleep(config.batch_interval_sec)
+    finally:
+        await producer.stop()
+        print(f"\n[generator_seg] Continuous summary: batches={cycle_number}, fan_pings={fan_pings_total}, pos_transactions={pos_total}")
 
 
 def main():

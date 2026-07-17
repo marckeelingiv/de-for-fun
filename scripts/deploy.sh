@@ -42,7 +42,7 @@ create_topic_with_retry() {
   local max_retries=3
   local retry=0
   while [ $retry -lt $max_retries ]; do
-    if kubectl exec deployment/redpanda -- rpk topic create "$topic" 2>/dev/null; then
+    if kubectl exec deployment/redpanda -- rpk topic create "$topic" -c retention.ms=3600000 2>/dev/null; then
       echo "  Created topic: $topic"
       return 0
     fi
@@ -72,6 +72,12 @@ for topic in seg.fan-pings seg.pos-transactions podium.interaction-events podium
   else
     echo "  MISSING: $topic"
   fi
+  done
+
+echo "=== Setting Redpanda Topic Retention (1 hour) ==="
+for topic in seg.fan-pings seg.pos-transactions podium.interaction-events podium.ai-telemetry; do
+  kubectl exec deployment/redpanda -- rpk topic set-config "$topic" retention.ms=3600000 2>/dev/null || true
+  echo "  Set retention.ms=3600000 on $topic"
 done
 
 echo "=== All Services Deployed and Ready! ==="

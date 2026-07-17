@@ -1,3 +1,8 @@
+{{ config(
+    materialized='incremental',
+    unique_key=['tenant_id', 'merchant_id']
+) }}
+
 with joined as (
     select
         i.tenant_id,
@@ -8,6 +13,9 @@ with joined as (
         i.is_sms,
         t.sentiment_score
     from {{ ref('stg_interaction_events') }} i
+    {% if is_incremental() %}
+    where i.timestamp >= (select coalesce(max(latest_timestamp), '1970-01-01'::timestamp) from {{ this }})
+    {% endif %}
     left join {{ ref('stg_ai_telemetry') }} t
         on i.interaction_id = t.interaction_id
 )
@@ -16,6 +24,7 @@ select
     tenant_id,
     merchant_id,
     min(timestamp)::date as date_day,
+    max(timestamp) as latest_timestamp,
     count(*) as interaction_count,
     count(sentiment_score) as ai_interaction_count,
     avg(sentiment_score) as avg_sentiment,

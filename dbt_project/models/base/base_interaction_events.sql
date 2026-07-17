@@ -7,5 +7,6 @@ select
     cast(direction as varchar) as direction,
     cast(tenant_id as varchar) as tenant_id,
     cast(year as integer) as year,
-    cast(month as integer) as month
+    cast(month as integer) as month,
+    cast(generated_at as timestamp) as generated_at
 from {{ source('raw_podium', 'interaction_events') }}

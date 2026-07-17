@@ -7,5 +7,6 @@ select
     cast(estimated_dwell_time as integer) as estimated_dwell_time,
     cast(tenant_id as varchar) as tenant_id,
     cast(year as integer) as year,
-    cast(month as integer) as month
+    cast(month as integer) as month,
+    cast(generated_at as timestamp) as generated_at
 from {{ source('raw_arena', 'fan_pings') }}

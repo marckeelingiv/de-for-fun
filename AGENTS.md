@@ -27,6 +27,22 @@ Data flows: **generate → buffer → mount → dbt-run → (mcp/orchestrate)**.
 
 Skipping ahead (e.g. `dbt-run` before `buffer`) fails with empty/missing Parquet.
 
+## Continuous streaming mode
+
+For real-time data flow demo, use continuous mode:
+
+1. `make stream` — Deploys generator-seg, generator-podium, and buffer-writer pods to k3d.
+   - Generators produce ~500 rows/sec total (fan_pings 40%, pos 20%, interaction_events 25%, ai_telemetry 15%)
+   - Wall-clock timestamps, burst simulation (SEG event cycle every 3h: pre-show → main → intermission spike → post-show → lull)
+   - Buffer writer flushes to MinIO every 15 minutes (4 Parquet files/hour)
+2. `make stream-stop` — Removes generator and buffer pods from k3d.
+3. Dagster schedule `dbt_rebuild_schedule` runs incremental dbt build every 30 minutes.
+4. DuckDB views auto-discover new Parquet via glob (`**/*.parquet`) — no re-mount needed.
+
+For local (non-k3d) continuous mode: `make generate-continuous` and `make buffer-continuous` in separate terminals.
+
+Key env vars: `GENERATOR_RATE_ROWS_PER_SEC`, `GENERATOR_BATCH_INTERVAL_SEC`, `BUFFER_FLUSH_INTERVAL`, `BUFFER_CONTINUOUS`.
+
 ## dbt & DuckDB gotchas
 
 - **dbt profiles live in `dbt_project/profiles.yml`, not `~/.dbt/`.** Every dbt command must pass `--project-dir dbt_project --profiles-dir dbt_project`. The Makefile does this; if invoking dbt by hand, replicate it.
@@ -45,15 +61,18 @@ Skipping ahead (e.g. `dbt-run` before `buffer`) fails with empty/missing Parquet
 ## Dagster orchestration
 
 - `make orchestrate` starts Dagster dev UI on :3000 loading `src/orchestration/definitions.py`.
-- Assets (`src/orchestration/assets.py`) shell out to `src/generator.py`, `buffer_writer.py`, `verify_data.py` via `subprocess.run` with `cwd=PROJECT_ROOT`, then run dbt via `dagster-dbt` using the manifest at `dbt_project/target/manifest.json`.
-- All dbt model assets are wired to depend on `minio_data_verified` via `ProjectSandboxDbtTranslator`.
-- `buffer_writer` asset intentionally allows `TimeoutExpired` (long-running consumer) — not a failure.
+- In continuous mode, the generator and buffer writer run as standalone k3d pods (not Dagster assets).
+- `minio_data_verified` asset runs `src/verify_data.py` via subprocess.
+- `project_sandbox_dbt` runs dbt build (incremental models). All dbt model assets depend on `minio_data_verified`.
+- `dbt_rebuild_schedule` triggers dbt build every 30 minutes (`*/30 * * * *` cron).
+- Mart models use `materialized='incremental'` with `latest_timestamp` watermark — only new data is processed each run.
 
 ## Data model quick reference
 
 - Two domains: `arena` (SEG) and `podium` (Podium). Four source tables: `fan_pings`, `pos_transactions`, `interaction_events`, `ai_telemetry`.
 - Redpanda topics: `seg.fan-pings`, `seg.pos-transactions`, `podium.interaction-events`, `podium.ai-telemetry`.
 - MinIO bucket: `data-lakehouse`. Partition path: `{domain}/{table}/tenant_id={tenant}/year=YYYY/month=MM/{batch_id}.parquet`. All four source schemas include `tenant_id` as the first hive partition column.
+- All four source schemas now include a `generated_at` (datetime) column for batch tracking in continuous mode.
 - dbt layout: `models/base` (tables from Parquet) → `models/staging` (views) → `models/marts` (tables, includes semantic models + metrics + time spine). 13 models, 4 semantic models, 8 metrics.
 
 ## When editing source
@@ -62,3 +81,5 @@ Skipping ahead (e.g. `dbt-run` before `buffer`) fails with empty/missing Parquet
 - Generators are split: `generator_seg.py` (arena), `generator_podium.py` (podium), `generator.py` (combined orchestrator). Keep schemas in sync with `src/config.py` and dbt base models.
 - `KNOWN_ISSUES.md` tracks resolved and open issues with file references — check it before "fixing" something that may already be resolved or intentionally deferred.
 - `TODO.md` lists planned future work (CI, dbt tests, Great Expectations, manifest reload tool).
+- In continuous mode, generators use wall-clock `datetime.now()` for timestamps and a per-cycle incrementing seed (`seed + cycle * 7919`). The `generated_at` column tracks batch creation time.
+- `ContinuousGeneratorConfig` and `RedpandaRetentionConfig` in `src/config.py` control continuous-mode behavior. Topic weights, rate, and burst patterns are env-configurable.

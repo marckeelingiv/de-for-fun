@@ -1,6 +1,6 @@
 ROWS ?= 100000
 
-.PHONY: help setup up down deploy status dashboard generate generate-full buffer mount query verify dbt-debug dbt-parse dbt-compile dbt-run dbt-test orchestrate mcp mcp-http test-mcp
+.PHONY: help setup up down deploy status dashboard generate generate-full buffer stream stream-stop generate-continuous buffer-continuous mount query verify dbt-debug dbt-parse dbt-compile dbt-run dbt-test orchestrate mcp mcp-http test-mcp
 
 help:
 	@echo "Available commands:"
@@ -13,6 +13,10 @@ help:
 	@echo "  make generate      - Generate synthetic data and stream to Redpanda (ROWS=$(ROWS))"
 	@echo "  make generate-full - Generate 50M+ rows at full scale"
 	@echo "  make buffer        - Start buffer writer (Redpanda → MinIO Parquet)"
+	@echo "  make generate-continuous - Start continuous data generator (local, Ctrl+C to stop)"
+	@echo "  make buffer-continuous  - Start continuous buffer writer (local, Ctrl+C to stop)"
+	@echo "  make stream            - Deploy generator + buffer containers to k3d cluster"
+	@echo "  make stream-stop       - Remove generator + buffer containers from k3d cluster"
 	@echo "  make mount         - Mount DuckDB views over MinIO Parquet files via httpfs"
 	@echo "  make query         - Run analytical queries on the Parquet views"
 	@echo "  make verify        - Verify Parquet row counts and schema integrity"
@@ -67,6 +71,38 @@ generate-full:
 buffer:
 	@echo "=== Starting buffer writer (Redpanda → MinIO Parquet) ==="
 	@uv run python src/buffer_writer.py
+
+generate-continuous:
+	@echo "=== Starting continuous generator (local, Ctrl+C to stop) ==="
+	@uv run python src/generator.py --continuous
+
+buffer-continuous:
+	@echo "=== Starting continuous buffer writer (local, Ctrl+C to stop) ==="
+	@uv run python src/buffer_writer.py --continuous
+
+stream:
+	@echo "=== Deploying continuous generator + buffer containers to k3d ==="
+	@kubectl config use-context k3d-sandbox 2>/dev/null || true
+	@kubectl apply -f k3s/generator-seg.yaml
+	@kubectl apply -f k3s/generator-podium.yaml
+	@kubectl apply -f k3s/buffer-writer.yaml
+	@echo "=== Waiting for generator + buffer pods to be ready ==="
+	@kubectl rollout status deployment/generator-seg --timeout=600s
+	@kubectl rollout status deployment/generator-podium --timeout=600s
+	@kubectl rollout status deployment/buffer-writer --timeout=600s
+	@echo "=== Continuous stream deployed! ==="
+	@echo "  Generator SEG:   producing ~200 rows/sec to seg.* topics"
+	@echo "  Generator Podium: producing ~300 rows/sec to podium.* topics"
+	@echo "  Buffer Writer:    flushing to MinIO every 15 minutes"
+	@echo ""
+	@echo "  Watch pods:   kubectl get pods -l app in (generator-seg,generator-podium,buffer-writer)"
+	@echo "  Stop stream:  make stream-stop"
+
+stream-stop:
+	@echo "=== Stopping continuous generator + buffer containers ==="
+	@kubectl config use-context k3d-sandbox 2>/dev/null || true
+	@kubectl delete deployment generator-seg generator-podium buffer-writer 2>/dev/null || true
+	@echo "=== Stream stopped ==="
 
 mount:
 	@echo "=== Mounting DuckDB views over MinIO Parquet files ==="

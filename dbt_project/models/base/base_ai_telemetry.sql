@@ -7,5 +7,6 @@ select
     cast(latency_ms as integer) as latency_ms,
     cast(tenant_id as varchar) as tenant_id,
     cast(year as integer) as year,
-    cast(month as integer) as month
+    cast(month as integer) as month,
+    cast(generated_at as timestamp) as generated_at
 from {{ source('raw_podium', 'ai_telemetry') }}

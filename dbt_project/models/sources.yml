@@ -23,6 +23,8 @@ sources:
             data_type: double
           - name: estimated_dwell_time
             data_type: integer
+          - name: generated_at
+            data_type: timestamp
       - name: pos_transactions
         description: Point-of-sale transaction events from arena vendors.
         columns:
@@ -40,6 +42,8 @@ sources:
             data_type: double
           - name: payment_method
             data_type: varchar
+          - name: generated_at
+            data_type: timestamp
 
   - name: raw_podium
     description: Raw Podium interaction and AI telemetry events persisted as partitioned Parquet in MinIO.
@@ -63,6 +67,8 @@ sources:
             data_type: varchar
           - name: direction
             data_type: varchar
+          - name: generated_at
+            data_type: timestamp
       - name: ai_telemetry
         description: AI conversation token, latency, and sentiment telemetry.
         columns:
@@ -80,3 +86,5 @@ sources:
             data_type: double
           - name: latency_ms
             data_type: integer
+          - name: generated_at
+            data_type: timestamp

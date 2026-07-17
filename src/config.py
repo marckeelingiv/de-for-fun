@@ -44,6 +44,7 @@ FAN_PINGS_SCHEMA: dict[str, str] = {
     "x_coord": "float64",
     "y_coord": "float64",
     "estimated_dwell_time": "int32",
+    "generated_at": "datetime",
 }
 
 POS_TRANSACTIONS_SCHEMA: dict[str, str] = {
@@ -54,6 +55,7 @@ POS_TRANSACTIONS_SCHEMA: dict[str, str] = {
     "item_id": "str",
     "amount": "float64",
     "payment_method": "str",
+    "generated_at": "datetime",
 }
 
 INTERACTION_EVENTS_SCHEMA: dict[str, str] = {
@@ -64,6 +66,7 @@ INTERACTION_EVENTS_SCHEMA: dict[str, str] = {
     "customer_id": "str",
     "channel": "str",
     "direction": "str",
+    "generated_at": "datetime",
 }
 
 AI_TELEMETRY_SCHEMA: dict[str, str] = {
@@ -74,6 +77,7 @@ AI_TELEMETRY_SCHEMA: dict[str, str] = {
     "completion_tokens": "int32",
     "sentiment_score": "float64",
     "latency_ms": "int32",
+    "generated_at": "datetime",
 }
 
 SCHEMAS: dict[str, dict[str, str]] = {
@@ -95,6 +99,22 @@ class RedpandaConfig:
             brokers=os.environ.get("REDPANDA_BROKERS", "localhost:9092"),
             consumer_group=os.environ.get("REDPANDA_CONSUMER_GROUP", "buffer-writer-group"),
         )
+
+
+@dataclass(frozen=True)
+class RedpandaRetentionConfig:
+    retention_ms: int
+
+    @classmethod
+    def from_env(cls) -> "RedpandaRetentionConfig":
+        return cls(
+            retention_ms=int(os.environ.get("REDPANDA_RETENTION_MS", "3600000")),
+        )
+
+    @property
+    def rpk_retention_arg(self) -> str:
+        """Returns the rpk flag for topic creation with retention."""
+        return f"-c retention.ms={self.retention_ms}"
 
 
 @dataclass(frozen=True)
@@ -122,12 +142,16 @@ class MinIOConfig:
 class BufferConfig:
     batch_size: int
     idle_timeout_seconds: int
+    continuous: bool
+    flush_interval_seconds: int
 
     @classmethod
     def from_env(cls) -> "BufferConfig":
         return cls(
             batch_size=int(os.environ.get("BUFFER_BATCH_SIZE", "10000")),
             idle_timeout_seconds=int(os.environ.get("BUFFER_IDLE_TIMEOUT", "30")),
+            continuous=os.environ.get("BUFFER_CONTINUOUS", "0") == "1",
+            flush_interval_seconds=int(os.environ.get("BUFFER_FLUSH_INTERVAL", "900")),
         )
 
 
@@ -144,6 +168,48 @@ class GeneratorConfig:
             full_scale_rows=int(os.environ.get("GENERATOR_FULL_SCALE_ROWS", "50000000")),
             batch_size=int(os.environ.get("GENERATOR_BATCH_SIZE", "5000")),
         )
+
+
+@dataclass(frozen=True)
+class ContinuousGeneratorConfig:
+    rows_per_sec: int
+    batch_interval_sec: int
+    seg_event_cycle_hours: int
+    fan_pings_weight: float
+    pos_transactions_weight: float
+    interaction_events_weight: float
+    ai_telemetry_weight: float
+    kafka_retry_max_attempts: int
+    kafka_retry_backoff_sec: float
+
+    @classmethod
+    def from_env(cls) -> "ContinuousGeneratorConfig":
+        return cls(
+            rows_per_sec=int(os.environ.get("GENERATOR_RATE_ROWS_PER_SEC", "500")),
+            batch_interval_sec=int(os.environ.get("GENERATOR_BATCH_INTERVAL_SEC", "2")),
+            seg_event_cycle_hours=int(os.environ.get("GENERATOR_SEG_EVENT_CYCLE_HOURS", "3")),
+            fan_pings_weight=float(os.environ.get("GENERATOR_FAN_PINGS_WEIGHT", "0.40")),
+            pos_transactions_weight=float(os.environ.get("GENERATOR_POS_TRANSACTIONS_WEIGHT", "0.20")),
+            interaction_events_weight=float(os.environ.get("GENERATOR_INTERACTION_EVENTS_WEIGHT", "0.25")),
+            ai_telemetry_weight=float(os.environ.get("GENERATOR_AI_TELEMETRY_WEIGHT", "0.15")),
+            kafka_retry_max_attempts=int(os.environ.get("GENERATOR_KAFKA_RETRY_MAX", "10")),
+            kafka_retry_backoff_sec=float(os.environ.get("GENERATOR_KAFKA_RETRY_BACKOFF", "2.0")),
+        )
+
+    @property
+    def batch_size(self) -> int:
+        """Rows per batch = rows_per_sec * batch_interval_sec."""
+        return self.rows_per_sec * self.batch_interval_sec
+
+    @property
+    def topic_weights(self) -> dict[str, float]:
+        """Map topic names to rate weights."""
+        return {
+            Topic.FAN_PINGS.value: self.fan_pings_weight,
+            Topic.POS_TRANSACTIONS.value: self.pos_transactions_weight,
+            Topic.INTERACTION_EVENTS.value: self.interaction_events_weight,
+            Topic.AI_TELEMETRY.value: self.ai_telemetry_weight,
+        }
 
 
 @dataclass(frozen=True)

@@ -3,12 +3,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import argparse
 import asyncio
 import io
 import json
 import signal
 import time
 import uuid
+from dataclasses import replace
 
 import polars as pl
 import pyarrow.parquet as pq
@@ -59,9 +61,13 @@ class TopicBuffer:
             self.committed_offsets[partition] = offset
         self.last_flush_time = time.monotonic()
 
-    def should_flush(self, idle_timeout: int) -> bool:
+    def should_flush(self, idle_timeout: int, flush_interval: int | None = None) -> bool:
         if len(self.records) >= self.batch_size:
             return True
+        if flush_interval is not None:
+            if self.records and (time.monotonic() - self.last_flush_time) >= flush_interval:
+                return True
+            return False
         if self.records and (time.monotonic() - self.last_flush_time) >= idle_timeout:
             return True
         return False
@@ -124,10 +130,12 @@ class TopicBuffer:
         return count
 
 
-async def run() -> None:
+async def run(continuous: bool = False) -> None:
     redpanda = RedpandaConfig.from_env()
     minio_cfg = MinIOConfig.from_env()
     buffer_cfg = BufferConfig.from_env()
+    if continuous:
+        buffer_cfg = replace(buffer_cfg, continuous=True)
 
     print(f"[buffer_writer] Redpanda brokers: {redpanda.brokers}")
     print(f"[buffer_writer] MinIO endpoint: {minio_cfg.endpoint}, bucket: {minio_cfg.bucket}")
@@ -135,6 +143,10 @@ async def run() -> None:
         f"[buffer_writer] Batch size: {buffer_cfg.batch_size}, "
         f"idle timeout: {buffer_cfg.idle_timeout_seconds}s"
     )
+    if buffer_cfg.continuous:
+        print(f"[buffer_writer] Continuous mode: flush every {buffer_cfg.flush_interval_seconds}s")
+    else:
+        print(f"[buffer_writer] Idle timeout: {buffer_cfg.idle_timeout_seconds}s")
 
     minio_client = Minio(
         minio_cfg.endpoint,
@@ -171,6 +183,9 @@ async def run() -> None:
     await consumer.start()
     print(f"[buffer_writer] Subscribed to {len(ALL_TOPICS)} topics: {', '.join(ALL_TOPICS)}")
 
+    flush_interval = buffer_cfg.flush_interval_seconds if buffer_cfg.continuous else None
+    idle_timeout = buffer_cfg.idle_timeout_seconds
+
     try:
         while not shutdown_event.is_set():
             try:
@@ -186,8 +201,13 @@ async def run() -> None:
                     topic_buf.add(msg.value, msg.partition, msg.offset)
 
             for topic, topic_buf in buffers.items():
-                if topic_buf.should_flush(buffer_cfg.idle_timeout_seconds):
-                    if len(topic_buf.records) < topic_buf.batch_size:
+                if topic_buf.should_flush(idle_timeout, flush_interval):
+                    if flush_interval is not None and len(topic_buf.records) < topic_buf.batch_size:
+                        print(
+                            f"[buffer_writer] Flush interval reached for {topic}, "
+                            f"flushing {len(topic_buf.records)} records..."
+                        )
+                    elif flush_interval is None and len(topic_buf.records) < topic_buf.batch_size:
                         print(
                             f"[buffer_writer] Idle timeout reached for {topic}, "
                             f"flushing {len(topic_buf.records)} records..."
@@ -223,8 +243,17 @@ async def run() -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Buffer writer (Redpanda -> MinIO Parquet)")
+    parser.add_argument(
+        "--continuous",
+        action="store_true",
+        default=False,
+        help="Run in continuous mode (never exit on idle, flush on interval).",
+    )
+    args = parser.parse_args()
+
     try:
-        asyncio.run(run())
+        asyncio.run(run(continuous=args.continuous))
     except KeyboardInterrupt:
         pass
 

@@ -1,7 +1,7 @@
 ROWS ?= 100000
 PREVIEW_NAME ?= sandbox-preview
 
-.PHONY: help setup up down deploy status dashboard trino trino-init trino-smoke generate generate-full buffer stream stream-stop generate-continuous buffer-continuous mount query verify dbt-debug dbt-parse dbt-compile dbt-run dbt-test dbt-compile-trino dbt-run-trino lightdash-lint lightdash-deploy lightdash-upload lightdash-download lightdash-preview lightdash-stop-preview lightdash-config orchestrate mcp mcp-http test-mcp slides slides-build slides-export
+.PHONY: help setup up down deploy status dashboard trino trino-init trino-smoke generate generate-full buffer stream stream-stop generate-continuous buffer-continuous mount query verify dbt-debug dbt-parse dbt-compile dbt-run dbt-test dbt-compile-trino dbt-run-trino lightdash-lint lightdash-deploy lightdash-upload lightdash-download lightdash-preview lightdash-stop-preview lightdash-config orchestrate mcp mcp-http test-mcp persona-review persona-conversation test-persona-review slides slides-build slides-export
 
 help:
 	@echo "Available commands:"
@@ -42,6 +42,9 @@ help:
 	@echo "  make mcp          - Start MCP server (stdio, for LLM integration)"
 	@echo "  make mcp-http     - Start MCP server (HTTP, port 8079)"
 	@echo "  make test-mcp     - Run MCP server integration tests"
+	@echo "  make persona-review - Prepare a local persona review packet (BRIEF=... ARTIFACT=... OUTPUT=...)"
+	@echo "  make persona-conversation - Start an OpenCode persona session (PERSONA=... BRIEF=... ARTIFACT=...)"
+	@echo "  make test-persona-review - Run persona review unit tests"
 	@echo "  make slides       - Start the meetup slideshow deck"
 	@echo "  make slides-build - Build the slideshow as static HTML"
 	@echo "  make slides-export - Export the slideshow to PDF"
@@ -223,6 +226,15 @@ mcp-http:
 test-mcp:
 	@echo "=== Running MCP server integration tests ==="
 	@uv run python src/test_mcp_server.py
+
+persona-review:
+	@uv run python src/persona_review.py --brief $(BRIEF) --artifact $(ARTIFACT) --output $(OUTPUT)
+
+persona-conversation:
+	@./scripts/persona_conversation.sh "$(PERSONA)" "$(BRIEF)" "$(ARTIFACT)"
+
+test-persona-review:
+	@uv run python src/test_persona_review.py
 
 slides:
 	@echo "=== Starting Slidev meetup deck ==="

@@ -12,3 +12,12 @@ project_sandbox:
         s3_url_style: path
         s3_access_key_id: "{{ env_var('MINIO_ACCESS_KEY', 'minioadmin') }}"
         s3_secret_access_key: "{{ env_var('MINIO_SECRET_KEY', 'minioadmin') }}"
+    trino:
+      type: trino
+      method: none
+      user: "{{ env_var('TRINO_USER', 'project_sandbox') }}"
+      host: "{{ env_var('TRINO_HOST', 'localhost') }}"
+      port: "{{ env_var('TRINO_PORT', 8081) | int }}"
+      database: "{{ env_var('TRINO_CATALOG', 'hive') }}"
+      schema: "{{ env_var('TRINO_SCHEMA', 'analytics') }}"
+      threads: 4

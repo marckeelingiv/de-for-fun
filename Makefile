@@ -1,16 +1,19 @@
 ROWS ?= 100000
 PREVIEW_NAME ?= sandbox-preview
 
-.PHONY: help setup up down deploy status dashboard generate generate-full buffer stream stream-stop generate-continuous buffer-continuous mount query verify dbt-debug dbt-parse dbt-compile dbt-run dbt-test lightdash-lint lightdash-deploy lightdash-upload lightdash-download lightdash-preview lightdash-stop-preview lightdash-config orchestrate mcp mcp-http test-mcp slides slides-build slides-export
+.PHONY: help setup up down deploy status dashboard trino trino-init trino-smoke generate generate-full buffer stream stream-stop generate-continuous buffer-continuous mount query verify dbt-debug dbt-parse dbt-compile dbt-run dbt-test dbt-compile-trino dbt-run-trino lightdash-lint lightdash-deploy lightdash-upload lightdash-download lightdash-preview lightdash-stop-preview lightdash-config orchestrate mcp mcp-http test-mcp slides slides-build slides-export
 
 help:
 	@echo "Available commands:"
 	@echo "  make setup         - Install local dependencies (k3d, kubectl)"
 	@echo "  make up            - Spin up k3d containerized cluster"
 	@echo "  make down          - Tear down k3d cluster and delete resources"
-	@echo "  make deploy        - Apply postgres, minio, dagster, and lightdash manifests"
+	@echo "  make deploy        - Apply postgres, minio, trino, dagster, and lightdash manifests"
 	@echo "  make status        - Show status of pods and services in the cluster"
 	@echo "  make dashboard     - Deploy Skooner, print access token, and start port-forwarding"
+	@echo "  make trino         - Deploy Trino query service for Lightdash"
+	@echo "  make trino-init    - Register MinIO Parquet tables in Trino Hive catalog"
+	@echo "  make trino-smoke   - Run Trino raw table smoke counts"
 	@echo "  make generate      - Generate synthetic data and stream to Redpanda (ROWS=$(ROWS))"
 	@echo "  make generate-full - Generate 50M+ rows at full scale"
 	@echo "  make buffer        - Start buffer writer (Redpanda → MinIO Parquet)"
@@ -25,6 +28,8 @@ help:
 	@echo "  make dbt-parse     - Parse dbt models (validate syntax)"
 	@echo "  make dbt-compile   - Compile dbt models to SQL"
 	@echo "  make dbt-run       - Run dbt models (build tables/views in DuckDB)"
+	@echo "  make dbt-compile-trino - Compile dbt models against Trino target"
+	@echo "  make dbt-run-trino - Run dbt models against Trino target"
 	@echo "  make dbt-test      - Run dbt data tests"
 	@echo "  make lightdash-lint    - Validate Lightdash chart/dashboard YAML locally"
 	@echo "  make lightdash-deploy  - Deploy dbt semantic layer (metrics, dimensions) to Lightdash"
@@ -56,6 +61,22 @@ deploy:
 status:
 	@kubectl config use-context k3d-sandbox 2>/dev/null || true
 	@kubectl get pods,svc -o wide
+
+trino:
+	@echo "=== Deploying Trino query service ==="
+	@kubectl config use-context k3d-sandbox 2>/dev/null || true
+	@kubectl apply -f k3s/trino.yaml
+	@kubectl rollout restart deployment/trino
+	@kubectl rollout status deployment/trino --timeout=600s
+	@echo "Access Trino at http://localhost:8081"
+
+trino-init: trino
+	@./scripts/init_trino.sh
+
+trino-smoke:
+	@echo "=== Running Trino raw table smoke counts ==="
+	@kubectl config use-context k3d-sandbox 2>/dev/null || true
+	@kubectl exec deployment/trino -- trino --execute "SELECT 'raw_arena.fan_pings' AS table_name, count(*) AS row_count FROM hive.raw_arena.fan_pings UNION ALL SELECT 'raw_arena.pos_transactions', count(*) FROM hive.raw_arena.pos_transactions UNION ALL SELECT 'raw_podium.interaction_events', count(*) FROM hive.raw_podium.interaction_events UNION ALL SELECT 'raw_podium.ai_telemetry', count(*) FROM hive.raw_podium.ai_telemetry"
 
 dashboard:
 	@kubectl config use-context k3d-sandbox 2>/dev/null || true
@@ -142,6 +163,14 @@ dbt-compile:
 dbt-run:
 	@echo "=== Running dbt models ==="
 	@DUCKDB_PATH=$(CURDIR)/dbt_project/target/dev.duckdb uv run dbt run --project-dir dbt_project --profiles-dir dbt_project
+
+dbt-compile-trino:
+	@echo "=== Compiling dbt models against Trino ==="
+	@./scripts/dbt_trino.sh compile
+
+dbt-run-trino:
+	@echo "=== Running dbt models against Trino ==="
+	@./scripts/dbt_trino.sh run
 
 dbt-test:
 	@echo "=== Running dbt tests ==="

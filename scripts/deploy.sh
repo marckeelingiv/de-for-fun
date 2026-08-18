@@ -18,11 +18,14 @@ kubectl apply -f k3s/duckdb-storage.yaml
 kubectl apply -f k3s/postgres.yaml
 kubectl apply -f k3s/minio.yaml
 kubectl apply -f k3s/redpanda.yaml
+kubectl apply -f k3s/trino.yaml
+kubectl rollout restart deployment/trino
 
 echo "=== Waiting for backing services to be ready ==="
 wait_for_deployment postgres
 wait_for_deployment minio
 wait_for_deployment redpanda
+wait_for_deployment trino
 
 # Apply services that depend on Postgres, MinIO, and Redpanda.
 kubectl apply -f k3s/dagster.yaml
@@ -76,8 +79,10 @@ for topic in seg.fan-pings seg.pos-transactions podium.interaction-events podium
 
 echo "=== Setting Redpanda Topic Retention (1 hour) ==="
 for topic in seg.fan-pings seg.pos-transactions podium.interaction-events podium.ai-telemetry; do
-  kubectl exec deployment/redpanda -- rpk topic set-config "$topic" retention.ms=3600000 2>/dev/null || true
+  kubectl exec deployment/redpanda -- rpk topic alter-config "$topic" --set retention.ms=3600000 >/dev/null
   echo "  Set retention.ms=3600000 on $topic"
 done
+
+./scripts/init_trino.sh
 
 echo "=== All Services Deployed and Ready! ==="

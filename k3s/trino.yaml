@@ -1,0 +1,128 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-config
+  namespace: default
+data:
+  config.properties: |
+    coordinator=true
+    node-scheduler.include-coordinator=true
+    http-server.http.port=8080
+    discovery.uri=http://localhost:8080
+  jvm.config: |
+    -server
+    -Xmx2G
+    -XX:+UseG1GC
+    -XX:G1HeapRegionSize=32M
+    -XX:+ExplicitGCInvokesConcurrent
+    -XX:+ExitOnOutOfMemoryError
+  node.properties: |
+    node.environment=project_sandbox
+    node.data-dir=/data/trino
+  hive.properties: |
+    connector.name=hive
+    hive.metastore=file
+    hive.metastore.catalog.dir=local:///data/trino/metastore
+    hive.metastore.disable-location-checks=true
+    hive.recursive-directories=true
+    hive.non-managed-table-writes-enabled=true
+    fs.native-local.enabled=true
+    fs.native-s3.enabled=true
+    s3.endpoint=http://minio:9000
+    s3.aws-access-key=minioadmin
+    s3.aws-secret-key=minioadmin
+    s3.path-style-access=true
+    s3.region=us-east-1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trino
+  namespace: default
+  labels:
+    app: trino
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trino
+  template:
+    metadata:
+      labels:
+        app: trino
+    spec:
+      initContainers:
+        - name: wait-for-minio
+          image: rancher/mirrored-library-busybox:1.36.1
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "until nc -z minio 9000; do echo waiting for minio; sleep 2; done"]
+        - name: prepare-trino-data
+          image: rancher/mirrored-library-busybox:1.36.1
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "mkdir -p /data/trino/metastore && chmod -R 777 /data/trino"]
+          volumeMounts:
+            - mountPath: /data/trino
+              name: trino-data
+      containers:
+        - name: trino
+          image: trinodb/trino:477
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          readinessProbe:
+            httpGet:
+              path: /v1/info
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /v1/info
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            limits:
+              cpu: "1"
+              memory: 3Gi
+            requests:
+              cpu: "250m"
+              memory: 1Gi
+          volumeMounts:
+            - mountPath: /etc/trino/config.properties
+              name: trino-config
+              subPath: config.properties
+            - mountPath: /etc/trino/jvm.config
+              name: trino-config
+              subPath: jvm.config
+            - mountPath: /etc/trino/node.properties
+              name: trino-config
+              subPath: node.properties
+            - mountPath: /etc/trino/catalog/hive.properties
+              name: trino-config
+              subPath: hive.properties
+            - mountPath: /data/trino
+              name: trino-data
+      volumes:
+        - name: trino-config
+          configMap:
+            name: trino-config
+        - name: trino-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trino
+  namespace: default
+  labels:
+    app: trino
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 8081
+      targetPort: 8080
+      name: http
+  selector:
+    app: trino

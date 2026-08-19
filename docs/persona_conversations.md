@@ -1,6 +1,6 @@
 # Persona Conversations
 
-Use a persona conversation when you want a focused, two-pass critique from one professional perspective. The command launches a new interactive OpenCode session with the review contract, selected persona, review brief, and one artifact attached.
+Use a persona conversation when you want a focused, two-pass critique from one professional perspective. The command launches the OpenCode TUI with a prompt that loads the review contract, selected persona, review brief, and one artifact from local paths.
 
 For a combined panel packet, use `make persona-review` instead. The conversation launcher does not create a panel synthesis.
 
@@ -19,7 +19,7 @@ make persona-conversation \
   ARTIFACT=docs/prd.md
 ```
 
-The command starts a new interactive session titled `Persona review: ceo`. The persona begins by asking up to five clarification questions. Answer them in the session, then ask it to complete its independent critique using the attached contract.
+The command starts a new interactive session. The persona begins by asking up to five clarification questions. Answer them in the session, then ask it to complete its independent critique using the loaded contract.
 
 Available `PERSONA` values:
 
@@ -101,4 +101,4 @@ Start a separate OpenCode session with the packet attached and ask it to follow 
 
 ## Data Handling
 
-The launcher only starts OpenCode and passes local file paths. It does not call a model directly. The active OpenCode provider receives attached material according to its own configuration and policies; inspect the files before launching a session containing sensitive material.
+The launcher starts OpenCode and gives it local file paths to read. It does not call a model directly. The active OpenCode provider receives material read in the session according to its own configuration and policies; inspect the files before launching a session containing sensitive material.

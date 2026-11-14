@@ -2,11 +2,13 @@
 
 Compact guidance for AI agents working in this repo.
 
+For DE lesson planning, read `docs/content-plan.md`. Reusable presentation and post-production experiments live in the separate [Lesson Studio repository](https://github.com/marckeelingiv/lesson-studio); make production workflow changes there, not in this data repository.
+
 ## Toolchain
 
 - **Python 3.13, managed by `uv`.** Always invoke Python/dbt via `uv run` (e.g. `uv run python src/...`, `uv run dbt ...`). Never activate `.venv` manually or use bare `python`/`dbt`.
 - No lock on lint/typecheck/formatter tooling — none is installed or configured. Do not invent `ruff`/`mypy`/`pytest` commands; they are not part of this project's verification flow.
-- The only test suite is `make test-mcp` (`src/test_mcp_server.py`, `unittest`). It auto-skips if `dbt_project/target/semantic_manifest.json` or `dev.duckdb` are missing, so run `make dbt-compile` (or `dbt-parse`) first to generate the manifest.
+- The data stack's test suite is `make test-mcp` (`src/test_mcp_server.py`, `unittest`). It auto-skips if `dbt_project/target/semantic_manifest.json` or `dev.duckdb` are missing, so run `make dbt-compile` (or `dbt-parse`) first to generate the manifest.
 
 ## Infrastructure prerequisites
 
